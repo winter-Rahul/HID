@@ -82,7 +82,7 @@ class DecisionEngine:
             return {
                 "decision": "STEP_UP_VERIFICATION",
                 "reason_code": "FACE_TOO_FAR",
-                "message": "Face too far. Please step closer to the kiosk.",
+                "message": "Face too far. Step closer until your face fills the guide.",
                 "confidence": 0.3,
                 "allow": False,
                 "schedule_allowed": False,
@@ -93,7 +93,7 @@ class DecisionEngine:
             return {
                 "decision": "STEP_UP_VERIFICATION",
                 "reason_code": "IMAGE_BLURRY",
-                "message": "Image is blurry. Please hold still for recapture.",
+                "message": "Image is blurry. Hold still and clean the camera lens before retrying.",
                 "confidence": 0.4,
                 "allow": False,
                 "schedule_allowed": False,
@@ -104,7 +104,7 @@ class DecisionEngine:
             return {
                 "decision": "STEP_UP_VERIFICATION",
                 "reason_code": "POOR_LIGHTING",
-                "message": "Poor lighting conditions detected. Adjust ambient lighting.",
+                "message": "Poor lighting. Face an even light source and avoid a bright window behind you.",
                 "confidence": 0.4,
                 "allow": False,
                 "schedule_allowed": False,

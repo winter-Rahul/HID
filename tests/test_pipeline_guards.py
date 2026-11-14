@@ -7,10 +7,11 @@ from src.telemetry.logger import TelemetryLogger
 
 def make_pipeline(scores, *, online=True, features=None):
     pipeline = KioskPipeline.__new__(KioskPipeline)
-    frames = [np.full((4, 4, 3), i, dtype=np.uint8) for i in range(len(scores))]
+    frames = [np.full((240, 320, 3), i, dtype=np.uint8) for i in range(len(scores))]
     pipeline.burst_size = 8
     pipeline.camera = SimpleNamespace(get_burst=lambda n: list(enumerate(frames)), get_latest_frame=lambda: None)
-    pipeline.detector = SimpleNamespace(detect=lambda frame: {"n_faces": 1, "laplacian_var": 100, "brightness": 100, "bbox": [0, 0, 100, 100], "raw_face": None})
+    raw_face = np.array([100, 60, 100, 120, 125, 100, 175, 100, 150, 125, 130, 150, 170, 150, .99])
+    pipeline.detector = SimpleNamespace(detect=lambda frame: {"n_faces": 1, "laplacian_var": 100, "brightness": 100, "bbox": [100, 60, 100, 120], "raw_face": raw_face})
     pipeline.pad = SimpleNamespace(predict_frame=lambda frame, bbox: {"score": scores[int(frame[0, 0, 0])]}, aggregate_burst=lambda rows: {"p_live": min(r["score"] for r in rows), "uncertainty": 0., "strong_attack_cue": False, "attack_reason": None, "moire_hits": 0})
     vectors = features or [np.array([1., 0.]) for _ in frames]
     pipeline.recognizer = SimpleNamespace(extract_feature=lambda frame, face: vectors[int(frame[0, 0, 0])], cosine_threshold_high=.45, match=lambda feat: {"name": "Alice", "matched": True, "score": .9, "margin": .9})
@@ -57,7 +58,8 @@ def test_consistent_probe_matches_normalized_mean():
 def test_blurry_frame_does_not_contaminate_probe():
     vectors = [np.array([1., 0.]), np.array([1., 0.]), np.array([1., 0.]), np.array([.5, np.sqrt(.75)])]
     pipeline = make_pipeline([.95] * 4, features=vectors)
-    pipeline.detector.detect = lambda frame: {"n_faces": 1, "laplacian_var": 5 if frame[0, 0, 0] == 3 else 100, "brightness": 100, "bbox": [0, 0, 100, 100], "raw_face": None}
+    original_detect = pipeline.detector.detect
+    pipeline.detector.detect = lambda frame: {**original_detect(frame), "laplacian_var": 5 if frame[0, 0, 0] == 3 else 100}
     seen = []
     pipeline.recognizer.match = lambda feat: (seen.append(feat.copy()) or {"name": "Alice", "matched": True, "score": .9, "margin": .9})
     assert pipeline.process_burst()["decision"] == "ALLOW"

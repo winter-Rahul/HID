@@ -18,6 +18,9 @@ class CameraStream:
         self.cap = cv2.VideoCapture(camera_index)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        # Best effort: supported cameras can adapt white balance themselves.
+        # Backends that do not expose this control simply ignore the request.
+        self.cap.set(cv2.CAP_PROP_AUTO_WB, 1)
 
         if not self.cap.isOpened():
             print(f"[CameraStream] WARNING: Failed to open camera {camera_index}")

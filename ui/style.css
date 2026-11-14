@@ -522,6 +522,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .modal-header {
@@ -539,18 +541,33 @@ body {
 }
 
 .enroll-form {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+  margin-top: 16px;
 }
 
-.enroll-form input {
-  flex: 1;
+.enroll-form input,
+.enroll-form select,
+.user-actions input {
+  min-width: 0;
+  width: 100%;
   background-color: var(--bg-dark);
   color: var(--text-main);
   border: 1px solid var(--border-color);
   padding: 10px 14px;
   border-radius: 6px;
-  outline: none;
+  font: inherit;
+}
+
+.enroll-form .btn {
+  justify-content: center;
+}
+
+.enroll-form :is(input, select):focus-visible,
+.user-actions input:focus-visible {
+  outline: 2px solid var(--hid-cyan);
+  outline-offset: 2px;
 }
 
 .enroll-status {
@@ -560,16 +577,38 @@ body {
 
 .user-list {
   list-style: none;
-  max-height: 180px;
+  max-height: 260px;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .user-list li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
+  display: grid;
+  gap: 10px;
+  padding: 12px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.user-info {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.user-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+}
+
+.user-actions .btn {
+  justify-content: center;
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .enroll-form { grid-template-columns: minmax(0, 1fr); }
+  .user-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .user-actions input { grid-column: 1 / -1; }
 }
 
 /* Drawer */

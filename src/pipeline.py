@@ -8,7 +8,7 @@ import numpy as np
 import yaml
 from typing import Dict, Any, Optional
 
-from src.detector.face_detector import FaceDetector
+from src.detector.face_detector import FaceDetector, framing_issue
 from src.identity.face_recognizer import FaceRecognizer
 from src.pad.liveness_detector import LivenessDetector
 from src.decision.decision_engine import DecisionEngine
@@ -77,6 +77,9 @@ class KioskPipeline:
             face = self.detector.detect(sample)
             if face is None or face.get("n_faces", 1) != 1:
                 return {"success": False, "message": "A single face must be visible throughout enrollment"}
+            hint = framing_issue(face, sample.shape)
+            if hint:
+                return {"success": False, "message": hint}
             if (face["laplacian_var"] < self.decision_engine.min_laplacian_var or
                     not self.decision_engine.min_brightness <= face["brightness"] <= self.decision_engine.max_brightness or
                     min(face["bbox"][2:4]) < self.decision_engine.min_face_size):
@@ -208,10 +211,21 @@ class KioskPipeline:
             self.telemetry.record_decision(scenario, dec["decision"], total_lat, dec)
             return dec
 
-        # 3. Burst temporal aggregation
         t0 = time.monotonic()
         pad_agg = self.pad.aggregate_burst(pad_results)
         timing_breakdown["pad_agg_ms"] = round((time.monotonic() - t0) * 1000, 1)
+        hint = framing_issue(best_face_det, best_frame.shape)
+        if hint:
+            total_lat = round((time.monotonic() - t_start) * 1000, 1)
+            spoof = pad_agg["strong_attack_cue"] or pad_agg["p_live"] <= self.decision_engine.t_spoof
+            dec = {"decision": "DENY" if spoof else "STEP_UP_VERIFICATION", "reason_code": "SPOOF_DETECTED" if spoof else "FACE_POSITION",
+                   "message": "Presentation attack detected." if spoof else hint, "confidence": None, "liveness_score": pad_agg["p_live"],
+                   "identity_match": False, "schedule_allowed": False, "online_mode": online_mode,
+                   "latency_ms": total_lat, "timings": timing_breakdown}
+            if not online_mode:
+                self.offline_mgr.queue_offline_decision(dec["decision"], None, dec["reason_code"], total_lat)
+            self.telemetry.record_decision(scenario, dec["decision"], total_lat, dec)
+            return dec
 
         # 4. Identity matching (on best quality aligned frame)
         t0 = time.monotonic()

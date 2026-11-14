@@ -15,6 +15,32 @@ from typing import Optional, Tuple, Dict, Any, List
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 
+def framing_issue(detection, frame_shape):
+    """Return a conservative positioning hint, or None for a usable face.
+
+    These geometry checks are heuristics, not a pose or liveness classifier.
+    """
+    h, w = frame_shape[:2]
+    raw = detection.get("raw_face")
+    if raw is None or len(raw) < 14 or not np.isfinite(raw[:14]).all():
+        return "Keep your whole face visible and face the camera."
+    x, y, fw, fh = (float(v) for v in raw[:4])
+    if fw <= 0 or fh <= 0 or x < 0 or y < 0 or x + fw > w or y + fh > h:
+        return "Move back slightly so your whole face is visible."
+    cx, cy = x + fw / 2, y + fh / 2
+    if not (0.2 * w <= cx <= 0.8 * w and 0.2 * h <= cy <= 0.8 * h):
+        return "Move to the center of the camera and look straight ahead."
+    landmarks = np.asarray(raw[4:14], dtype=float).reshape(5, 2)
+    if (landmarks[:, 0] < 0).any() or (landmarks[:, 0] >= w).any() or (landmarks[:, 1] < 0).any() or (landmarks[:, 1] >= h).any():
+        return "Keep your eyes, nose, and mouth visible."
+    left, right = sorted((landmarks[0, 0], landmarks[1, 0]))
+    nose = landmarks[2, 0]
+    eye_width = right - left
+    if eye_width < 0.1 * fw or not left + .2 * eye_width <= nose <= right - .2 * eye_width:
+        return "Turn toward the camera so both eyes and your face are visible."
+    return None
+
+
 class FaceDetector:
     _lock = threading.Lock()
 
