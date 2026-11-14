@@ -1,0 +1,60 @@
+{
+  "scenarios": {
+    "genuine_live": {
+      "presentations": 1,
+      "allow": 0,
+      "request": 0,
+      "deny": 1,
+      "latencies_ms": [
+        362.8
+      ]
+    },
+    "printed_photo": {
+      "presentations": 0,
+      "allow": 0,
+      "request": 0,
+      "deny": 0,
+      "latencies_ms": []
+    },
+    "screen_replay": {
+      "presentations": 0,
+      "allow": 0,
+      "request": 0,
+      "deny": 0,
+      "latencies_ms": []
+    },
+    "video_replay": {
+      "presentations": 0,
+      "allow": 0,
+      "request": 0,
+      "deny": 0,
+      "latencies_ms": []
+    },
+    "paper_mask": {
+      "presentations": 0,
+      "allow": 0,
+      "request": 0,
+      "deny": 0,
+      "latencies_ms": []
+    },
+    "unknown_person": {
+      "presentations": 0,
+      "allow": 0,
+      "request": 0,
+      "deny": 0,
+      "latencies_ms": []
+    }
+  },
+  "history": [
+    {
+      "timestamp": 1794636023.0064063,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 362.8,
+      "reason_code": "NO_FACE_DETECTED",
+      "confidence": 0.0,
+      "p_live": 0.0,
+      "id_score": 0.0
+    }
+  ]
+}

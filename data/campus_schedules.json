@@ -1,0 +1,71 @@
+{
+  "Alex Morgan": {
+    "role": "Software Engineer",
+    "department": "Engineering",
+    "days": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri"
+    ],
+    "start_hour": 8,
+    "end_hour": 18,
+    "allowed_zones": [
+      "Building A",
+      "Main Gate",
+      "Labs"
+    ],
+    "emergency_override": false
+  },
+  "Security Officer": {
+    "role": "Campus Security",
+    "department": "Facilities",
+    "days": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat",
+      "Sun"
+    ],
+    "start_hour": 0,
+    "end_hour": 24,
+    "allowed_zones": [
+      "All"
+    ],
+    "emergency_override": true
+  },
+  "Visiting Guest": {
+    "role": "Vendor",
+    "department": "Visitor",
+    "days": [
+      "Mon",
+      "Wed"
+    ],
+    "start_hour": 10,
+    "end_hour": 14,
+    "allowed_zones": [
+      "Main Reception"
+    ],
+    "emergency_override": false
+  },
+  "Night Contractor": {
+    "role": "Maintenance",
+    "department": "Operations",
+    "days": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri"
+    ],
+    "start_hour": 22,
+    "end_hour": 4,
+    "allowed_zones": [
+      "Building B"
+    ],
+    "emergency_override": false
+  }
+}

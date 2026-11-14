@@ -1,0 +1,42 @@
+# HID Hackathon 2026 - Liveness & Authentication Configuration
+kiosk:
+  name: "HID Fortified-PAD Kiosk"
+  camera_index: 0
+  frame_width: 640
+  frame_height: 480
+  fps: 30
+
+capture:
+  burst_size: 8              # 8 frames ~0.26s at 30fps
+  max_wait_seconds: 1.5
+
+detector:
+  model_path: "models/face_detection_yunet_2023mar.onnx"
+  score_threshold: 0.7
+  nms_threshold: 0.3
+  top_k: 1
+
+quality:
+  min_face_width: 80         # minimum face box width
+  min_face_height: 80
+  min_laplacian_var: 40.0    # blur threshold (lower = blur)
+  min_brightness: 40.0       # average intensity
+  max_brightness: 240.0
+
+pad:
+  model_path: "models/minifasnet_v2.onnx"
+  input_size: [80, 80]
+  # Thresholds calibrated for 3-state decision
+  t_spoof: 0.40              # Below this is a definite attack -> DENY
+  t_live: 0.70               # Above this is confident live
+  u_max_variance: 0.08       # Temporal variance threshold across burst
+  fft_moire_threshold: 0.45  # High-frequency screen moire detector
+
+identity:
+  model_path: "models/face_recognition_sface_2021dec.onnx"
+  cosine_threshold_high: 0.45 # Confident match (SFace cosine typically >= 0.363 is threshold)
+  cosine_threshold_low: 0.32  # Below this is non-match -> DENY
+  margin_min: 0.08            # Difference between top-1 and top-2
+
+storage:
+  enrolled_faces_file: "data/enrolled_users.json"
