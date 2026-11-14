@@ -148,15 +148,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Format Decision Time
     const sec = (res.latency_ms / 1000).toFixed(2);
     metricTime.textContent = `${sec} s`;
-    metricConfidence.textContent = (res.confidence || 0.0).toFixed(2);
+    metricConfidence.textContent = Number.isFinite(res.liveness_score) ? res.liveness_score.toFixed(2) : '--';
     metricUser.textContent = res.matched_user || "--";
     outcomeReason.textContent = res.message || res.reason_code;
 
     // Stage updates
     const t = res.timings || {};
     stageCaptureVal.textContent = `✓ ${t.capture_ms || 0} ms`;
-    stagePADVal.textContent = `p_live: ${(res.liveness_score || 0).toFixed(2)}`;
-    stageIDVal.textContent = res.matched_user ? `✓ ${res.matched_user} (${(res.identity_score || 0).toFixed(2)})` : `No Match`;
+    stagePADVal.textContent = Number.isFinite(res.liveness_score) ? `Liveness score: ${res.liveness_score.toFixed(2)}` : 'Unavailable';
+    stageIDVal.textContent = Number.isFinite(res.identity_score) ? `Similarity: ${res.identity_score.toFixed(2)}${res.matched_user ? ` (${res.matched_user})` : ''}` : 'Unavailable';
     stageScheduleVal.textContent = res.schedule_allowed ? `✓ Authorized` : `✗ Denied (${res.schedule_details || 'Out of window'})`;
     stageDecisionVal.textContent = `✓ ${res.decision}`;
 
