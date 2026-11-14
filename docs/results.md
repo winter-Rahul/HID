@@ -1,5 +1,7 @@
 # HID Hackathon 2026 — Presentation Attack Detection Evaluation Report
 
+> **Historical, unverified demo report:** This file is stale and its PAD error-rate and compliance claims are not supported by the recorded end-to-end decisions. Do not use its figures as measured APCER/BPCER or as evidence of security. Collect and validate new labelled trials before publishing results.
+
 > **Standards Baseline:** ISO/IEC 30107-3 compliance  
 > **Data Source:** `data/telemetry_metrics.json` (Real-world recorded trials)  
 > **Total Live Trials Recorded:** 1  

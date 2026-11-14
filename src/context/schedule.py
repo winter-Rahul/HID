@@ -60,6 +60,7 @@ class ScheduleManager:
                     self.schedules = json.load(f)
             except Exception as e:
                 print(f"[ScheduleManager] Error loading {self.schedule_file}: {e}")
+                self.schedules = {}
         else:
             self._save()
 
@@ -89,16 +90,7 @@ class ScheduleManager:
         day_name = simulated_day if simulated_day is not None else now.strftime("%a")
 
         if name not in self.schedules:
-            # Enrolled user without explicit schedule profile defaults to standard business hours
-            sched = {
-                "role": "General Employee",
-                "department": "Standard",
-                "days": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-                "start_hour": 8,
-                "end_hour": 20,
-                "allowed_zones": ["Main Gate"],
-                "emergency_override": False,
-            }
+            return {"allowed": False, "reason": "No authorized schedule", "current_hour": hour}
         else:
             sched = self.schedules[name]
 
@@ -111,7 +103,15 @@ class ScheduleManager:
             }
 
         # Check day
-        if day_name not in sched.get("days", []):
+        start = sched.get("start_hour", 8)
+        end = sched.get("end_hour", 18)
+        days = sched.get("days", [])
+        # The early-morning part of an overnight shift belongs to its start day.
+        if start > end and hour < end:
+            weekday_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+            if day_name in weekday_names:
+                day_name = weekday_names[(weekday_names.index(day_name) - 1) % 7]
+        if day_name not in days:
             return {
                 "allowed": False,
                 "reason": f"Access denied: Not authorized on {day_name}",

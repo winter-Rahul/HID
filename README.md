@@ -1,7 +1,27 @@
 # HID Hackathon 2026 — "Can You Spot a Spoof?"
 
+## Running the prototype
+
+From the project root on Windows, create a virtual environment, install dependencies, and start the kiosk:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements-dev.txt
+$env:HID_ADMIN_TOKEN = '<a long, randomly generated management token>'
+python run_kiosk.py
+```
+
+Open `http://127.0.0.1:8000` in a browser. A webcam and the three ONNX files in `models/` are required. Run the automated tests with `python -m pytest -q`. On macOS or Linux, activate the environment with `source .venv/bin/activate` instead.
+
+This is a research prototype, not an access-control product. Management operations require the `HID_ADMIN_TOKEN` environment variable; the browser prompts for it when needed. Keep the token secret, bind the service to loopback, and use a secure administrative channel if remote operation is added. This shared token is not a complete user authentication system. Thresholds and model preprocessing require independent validation against genuine and attack presentations on the target hardware. The two-second target, attack detection rates, and reliability have not been established by automated tests. The online/offline switch is a manual demo control, and queued offline events are retained locally; no central-server synchronization is implemented. Biometric templates are stored locally in plaintext JSON. The existing `data/enrolled_users.json` is tracked by Git: review and remove any real biometric data from repository history before sharing it. Do not use this system to control real access or store real users' biometrics without addressing these gaps. The configuration YAML is currently illustrative; the pipeline uses hard-coded settings.
+
+The UI's end-to-end allow and deny rates are not PAD-only APCER or BPCER. Existing telemetry and the checked-in report may contain inconsistent or historical demo data and should not be presented as validated results. Record new consented, labelled trials under a documented protocol before reporting performance.
+
 > **Liveness Detection + Context-Aware Face Authentication Kiosk**
 > Status: 🟡 In Progress · Research complete · Building now
+
+The challenge requirements, architecture, proposed innovations, implementation plan, and Q&A below describe the original goals and demo plan. They are not a statement that all features have been implemented or validated. In particular, automatic synchronization, a nonce challenge, and an OTP/PIN verification flow are not implemented.
 
 ---
 
@@ -81,9 +101,9 @@ Capture → Liveness Check → Face Authentication → Context Check → Decisio
 ## 💡 Innovations We Can Defend
 
 1. **Uncertainty-aware tri-state decisions** — selective-risk protocol: what fraction of genuine users get escalated per APCER level.
-2. **Nonce-based screen-light challenge** — used *only* on the STEP-UP path; a pre-recorded replay cannot answer it.
+2. **Proposed nonce-based screen-light challenge** — intended for the STEP-UP path; not implemented or validated.
 3. **Context-Aware Access Control** — identity match alone is not sufficient; campus schedule gates the final ALLOW.
-4. **Offline Fail-Safe** — system degrades safely, never fails open, queues decisions for sync.
+4. **Offline Fail-Safe** — the prototype queues offline decisions locally; a real sync integration and its reliability still need validation.
 
 ---
 
@@ -253,7 +273,7 @@ HID/
 | PAD model | MiniFASNet / Silent-Face (ONNX, open weights) |
 | Face recognition | ArcFace (ONNX) |
 | Context / Schedule | JSON / SQLite (offline-safe) |
-| Offline queue | SQLite local store + sync on reconnect |
+| Offline queue | Local JSON queue; server synchronization not implemented |
 | Evaluation | Python, scipy (Clopper-Pearson) |
 
 ---
@@ -263,7 +283,7 @@ HID/
 | Likely question | Our answer |
 |-----------------|------------|
 | What if a spoofer is also scheduled? | Spoof veto fires first — DENY always wins over schedule |
-| What happens offline? | Local embedding match only, never ALLOW without it; all offline decisions queued and synced |
+| What happens offline? | The demo uses local matching and queues decisions locally; reconnecting does not sync them to a server. |
 | What can't your system detect? | High-quality 3D silicone masks; deepfake video injection (architecture-level, not model-level) |
 | Why three states? | Uncertainty is real — honest escalation beats silent false accepts |
 | Are your accuracy numbers reliable? | We report Clopper-Pearson CIs; 50 attacks can only bound APCER <= 6% at 95% confidence |

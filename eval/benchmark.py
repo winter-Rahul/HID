@@ -39,14 +39,14 @@ def run_benchmark_report(telemetry_file: str = "data/telemetry_metrics.json", ou
     md_lines = [
         "# HID Hackathon 2026 — Presentation Attack Detection Evaluation Report",
         "",
-        "> **Standards Baseline:** ISO/IEC 30107-3 compliance  ",
+        "> **Scope:** End-to-end decisions; these are not PAD-only APCER/BPCER measurements.  ",
         "> **Data Source:** `data/telemetry_metrics.json` (Real-world recorded trials)  ",
         f"> **Total Live Trials Recorded:** {total_trials}  ",
         "> **Latency SLA:** $\\le 2.0$ seconds  ",
         "",
         "## 1. Measured Per-Scenario Performance Matrix",
         "",
-        "| Scenario | Presentations | ALLOW (Pass) | STEP-UP (Verify) | DENY (Blocked) | APCER / BPCER (%) | 95% Clopper-Pearson CI | p50 Latency | p95 Latency |",
+        "| Scenario | Presentations | ALLOW (Pass) | STEP-UP (Verify) | DENY (Blocked) | End-to-end rate (%) | 95% Clopper-Pearson CI | p50 Latency | p95 Latency |",
         "| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |"
     ]
 
@@ -72,11 +72,11 @@ def run_benchmark_report(telemetry_file: str = "data/telemetry_metrics.json", ou
             if name == "genuine_live":
                 bpcer = (deny / float(n)) * 100.0
                 ci_low, ci_high = clopper_pearson(deny, n)
-                rate_str = f"**BPCER: {bpcer:.1f}%**"
+                rate_str = f"**DENY rate: {bpcer:.1f}%**"
             else:
                 apcer = (allow / float(n)) * 100.0
                 ci_low, ci_high = clopper_pearson(allow, n)
-                rate_str = f"**APCER: {apcer:.1f}%**"
+                rate_str = f"**ALLOW rate: {apcer:.1f}%**"
 
             ci_str = f"[{ci_low*100:.1f}%, {ci_high*100:.1f}%]"
             md_lines.append(f"| `{name}` | {n} | {allow} | {step_up} | {deny} | {rate_str} | {ci_str} | {p50:.0f} ms | {p95:.0f} ms |")
@@ -85,9 +85,9 @@ def run_benchmark_report(telemetry_file: str = "data/telemetry_metrics.json", ou
         "",
         "## 2. Real Architecture Guarantees",
         "",
-        "- **Hard Spoof Veto:** Liveness is evaluated before identity. Spoofs are blocked unconditionally.",
+        "- **Spoof veto:** A detected attack cannot be granted access. Detection accuracy requires measured trials.",
         "- **Context-Aware Schedule Check:** Biometric match is cross-referenced with campus access schedules; unauthorized shifts are denied.",
-        "- **Offline Fail-Safe:** When connection to central server is lost, system never fails open (0% fail-open rate).",
+        "- **Offline queue:** Events remain pending; no central server synchronization is implemented.",
         "- **Statistical Discipline:** All error bounds report Clopper-Pearson exact intervals without tuning thresholds on test data.",
     ])
 

@@ -65,16 +65,8 @@ class OfflineFailSafe:
         return entry
 
     def sync_queued_decisions(self) -> int:
-        """Simulates flushing queued offline audit logs to central server on reconnect."""
-        unsynced = [e for e in self.queue if not e["synced"]]
-        count = len(unsynced)
-        for e in unsynced:
-            e["synced"] = True
-            e["synced_at"] = time.time()
-        self._save_queue()
-        if count > 0:
-            print(f"[OfflineFailSafe] Successfully synchronized {count} offline audit events to central server.")
-        return count
+        """Keep events pending until a real server integration acknowledges them."""
+        return 0
 
     def get_queue_status(self) -> Dict[str, Any]:
         pending = sum(1 for e in self.queue if not e.get("synced", False))

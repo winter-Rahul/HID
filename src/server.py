@@ -5,7 +5,9 @@ Bulletproof Stream & Concurrency Protection
 import os
 import cv2
 import time
-from fastapi import FastAPI, Form, HTTPException, Query
+import secrets
+import threading
+from fastapi import Depends, FastAPI, Form, Header, HTTPException
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -19,6 +21,16 @@ app = FastAPI(title="HID Liveness & Context-Aware Kiosk API")
 
 # Initialize global pipeline
 pipeline = KioskPipeline()
+pipeline_lock = threading.RLock()
+
+
+def require_admin(x_admin_token: Optional[str] = Header(None)):
+    """Require an explicitly configured management credential."""
+    expected = os.environ.get("HID_ADMIN_TOKEN", "")
+    if not expected:
+        raise HTTPException(status_code=503, detail="Management access is not configured")
+    if not x_admin_token or not secrets.compare_digest(x_admin_token.encode(), expected.encode()):
+        raise HTTPException(status_code=401, detail="Invalid management credential")
 
 
 def generate_frames():
@@ -81,7 +93,6 @@ def video_stream():
 
 class AuthRequest(BaseModel):
     scenario: Optional[str] = "genuine_live"
-    simulated_hour: Optional[int] = None
 
 
 @app.post("/api/authenticate")
@@ -90,7 +101,8 @@ def authenticate(req: AuthRequest):
     Triggers the full burst authentication pipeline (< 2s).
     Thread-safe and updates persistent tracking state.
     """
-    result = pipeline.process_burst(scenario=req.scenario, simulated_hour=req.simulated_hour)
+    with pipeline_lock:
+        result = pipeline.process_burst(scenario=req.scenario)
     if "bbox" in result:
         pipeline.last_active_bbox = result["bbox"]
         pipeline.last_matched_name = result.get("matched_user") or "Verified Face"
@@ -98,62 +110,65 @@ def authenticate(req: AuthRequest):
 
 
 @app.get("/health")
-@app.post("/health")
-def health(offline: Optional[bool] = Query(None)):
-    """Health check endpoint that can toggle online/offline mode for demo."""
-    if offline is not None:
-        pipeline.offline_mgr.set_online_status(not offline)
+def health():
+    """Report local status without changing operational state."""
     status = pipeline.offline_mgr.get_queue_status()
     status["status"] = "healthy"
     return status
 
 
-@app.post("/api/toggle_offline")
+@app.post("/api/toggle_offline", dependencies=[Depends(require_admin)])
 def toggle_offline(enable_offline: bool = Form(...)):
     """Toggles online / offline fail-safe state."""
-    pipeline.offline_mgr.set_online_status(not enable_offline)
-    return pipeline.offline_mgr.get_queue_status()
+    with pipeline_lock:
+        pipeline.offline_mgr.set_online_status(not enable_offline)
+        return pipeline.offline_mgr.get_queue_status()
 
 
-@app.post("/api/enroll")
+@app.post("/api/enroll", dependencies=[Depends(require_admin)])
 def enroll(name: str = Form(...)):
     """Enrolls current face in camera as an authorized user."""
     if not name or len(name.strip()) == 0:
         raise HTTPException(status_code=400, detail="Name cannot be empty")
-    res = pipeline.enroll_user(name.strip())
+    with pipeline_lock:
+        res = pipeline.enroll_user(name.strip())
     if res.get("success"):
         pipeline.last_matched_name = name.strip()
     return res
 
 
-@app.get("/api/users")
+@app.get("/api/users", dependencies=[Depends(require_admin)])
 def get_users():
     """Returns list of enrolled users."""
-    users = pipeline.recognizer.list_users()
-    schedules = pipeline.schedule_mgr.schedules
+    with pipeline_lock:
+        users = pipeline.recognizer.list_users()
+        schedules = dict(pipeline.schedule_mgr.schedules)
     return {"users": users, "schedules": schedules}
 
 
-@app.delete("/api/users/{name}")
+@app.delete("/api/users/{name}", dependencies=[Depends(require_admin)])
 def delete_user(name: str):
     """Removes an enrolled user."""
-    success = pipeline.recognizer.remove_user(name)
+    with pipeline_lock:
+        success = pipeline.recognizer.remove_user(name)
     return {"success": success}
 
 
-@app.get("/api/metrics")
+@app.get("/api/metrics", dependencies=[Depends(require_admin)])
 def get_metrics():
     """Returns per-scenario ISO/IEC 30107-3 metrics and latency percentiles."""
-    metrics = pipeline.telemetry.get_summary()
-    queue_stat = pipeline.offline_mgr.get_queue_status()
+    with pipeline_lock:
+        metrics = pipeline.telemetry.get_summary()
+        queue_stat = pipeline.offline_mgr.get_queue_status()
     return {"metrics": metrics, "offline_status": queue_stat}
 
 
-@app.post("/api/reset_metrics")
+@app.post("/api/reset_metrics", dependencies=[Depends(require_admin)])
 def reset_metrics():
     """Resets telemetry history."""
-    pipeline.telemetry = pipeline.telemetry.__class__()
-    pipeline.telemetry.save()
+    with pipeline_lock:
+        pipeline.telemetry = pipeline.telemetry.__class__()
+        pipeline.telemetry.save()
     return {"status": "reset"}
 
 

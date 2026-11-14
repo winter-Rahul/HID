@@ -46,15 +46,19 @@ class KioskPipeline:
         if det is None:
             return {"success": False, "message": "No face detected for enrollment"}
 
+        if det.get("n_faces", 1) != 1:
+            return {"success": False, "message": "Only one person may be present during enrollment"}
+
         if det["laplacian_var"] < 35.0:
             return {"success": False, "message": "Face image is too blurry. Hold still."}
 
         success = self.recognizer.enroll(name, frame, det["raw_face"])
         # Register standard hackathon & employee schedule (Mon-Sun, 24h)
-        self.schedule_mgr.set_user_schedule(name, start_hour=0, end_hour=24, days=["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"])
-        return {"success": success, "name": name, "message": f"Successfully enrolled {name} with campus access"}
+        if success:
+            self.schedule_mgr.set_user_schedule(name, start_hour=0, end_hour=24, days=["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"])
+        return {"success": success, "name": name, "message": f"Successfully enrolled {name} with campus access" if success else "Enrollment failed"}
 
-    def process_burst(self, scenario: str = "genuine_live", simulated_hour: Optional[int] = None) -> Dict[str, Any]:
+    def process_burst(self, scenario: str = "genuine_live") -> Dict[str, Any]:
         """
         Executes full end-to-end authentication in <= 2.0s.
         Returns the exact shared response contract.
@@ -72,7 +76,7 @@ class KioskPipeline:
                 burst = [(time.monotonic(), latest)]
             else:
                 total_lat = round((time.monotonic() - t_start) * 1000, 1)
-                return {
+                result = {
                     "decision": "DENY",
                     "reason_code": "NO_CAMERA_FRAME",
                     "message": "Camera stream unavailable",
@@ -83,6 +87,10 @@ class KioskPipeline:
                     "confidence": 0.0,
                     "latency_ms": total_lat,
                 }
+                if not online_mode:
+                    self.offline_mgr.queue_offline_decision("DENY", None, result["reason_code"], total_lat)
+                self.telemetry.record_decision(scenario, "DENY", total_lat, result)
+                return result
         timing_breakdown["capture_ms"] = round((time.monotonic() - t0) * 1000, 1)
 
         # 2. Per-frame detection & PAD
@@ -91,11 +99,13 @@ class KioskPipeline:
         best_face_det = None
         best_quality = -1.0
         best_frame = None
+        max_faces = 0
 
         for ts, frame in burst:
             det = self.detector.detect(frame)
             if det is None:
                 continue
+            max_faces = max(max_faces, det.get("n_faces", 1))
 
             qual = det["laplacian_var"]
             if qual > best_quality:
@@ -152,17 +162,12 @@ class KioskPipeline:
         timing_breakdown["identity_ms"] = round((time.monotonic() - t0) * 1000, 1)
 
         # 5. Context schedule check
-        # Allow simulated hour for demonstration of scenario "schedule_violation"
-        test_hour = simulated_hour
-        if scenario == "schedule_denied" or scenario == "schedule_violation":
-            test_hour = 3  # 03:00 AM (outside normal 08:00 - 18:00 window)
-
-        sched_check = {"allowed": True, "reason": "No match to schedule"}
+        sched_check = {"allowed": False, "reason": "No match to schedule"}
         if id_res["name"]:
-            sched_check = self.schedule_mgr.check_access(id_res["name"], simulated_hour=test_hour)
+            sched_check = self.schedule_mgr.check_access(id_res["name"])
 
         # 6. Evidence fusion
-        n_faces = best_face_det.get("n_faces", 1)
+        n_faces = max_faces
         evidence = {
             "n_faces": n_faces,
             "bbox": best_face_det["bbox"],
@@ -187,6 +192,8 @@ class KioskPipeline:
         timing_breakdown["decision_ms"] = round((time.monotonic() - t0) * 1000, 1)
 
         total_latency_ms = round((time.monotonic() - t_start) * 1000, 1)
+        if total_latency_ms > 2000:
+            decision_result = self.decision_engine.decide({"timed_out": True})
 
         # Construct shared contract response
         contract_response = {

@@ -65,6 +65,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let isScanning = false;
   let autoScanTimer = null;
+  let adminToken = null;
+
+  async function managementFetch(url, options = {}) {
+    if (!adminToken) adminToken = window.prompt('Enter the kiosk management token:');
+    if (!adminToken) throw new Error('Management token required');
+    const headers = new Headers(options.headers || {});
+    headers.set('X-Admin-Token', adminToken);
+    const response = await fetch(url, { ...options, headers });
+    if (!response.ok) {
+      if (response.status === 401) adminToken = null;
+      throw new Error(`Management request failed (HTTP ${response.status})`);
+    }
+    return response;
+  }
 
   // 1. Online / Offline Toggle
   chkOnlineToggle.addEventListener('change', async (e) => {
@@ -78,7 +92,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const formData = new FormData();
     formData.append('enable_offline', (!isOnline).toString());
-    await fetch('/api/toggle_offline', { method: 'POST', body: formData });
+    try {
+      await managementFetch('/api/toggle_offline', { method: 'POST', body: formData });
+    } catch (err) {
+      e.target.checked = !isOnline;
+      txtOnlineStatus.textContent = isOnline ? 'Offline' : 'Online';
+      offlineAlertBanner.classList.toggle('hidden', !isOnline);
+      alert(err.message);
+    }
   });
 
   // 2. Authentication Execution
@@ -173,21 +194,26 @@ document.addEventListener('DOMContentLoaded', () => {
   // 4. User Enrollment Functions
   async function loadUsers() {
     try {
-      const resp = await fetch('/api/users');
+      const resp = await managementFetch('/api/users');
       const data = await resp.json();
       userCount.textContent = data.users.length;
       userList.innerHTML = '';
       data.users.forEach(u => {
         const sched = (data.schedules && data.schedules[u]) ? data.schedules[u] : null;
-        const windowStr = sched ? `${sched.start_hour}:00 - ${sched.end_hour}:00 (${sched.days.join(',')})` : '08:00 - 18:00 (Standard)';
+        const windowStr = sched ? `${sched.start_hour}:00 - ${sched.end_hour}:00 (${sched.days.join(',')})` : 'No authorized schedule';
         const li = document.createElement('li');
-        li.innerHTML = `
-          <div>
-            <b>👤 ${u}</b><br>
-            <small style="color:#94a3b8">Schedule: ${windowStr}</small>
-          </div>
-          <button class="btn btn-secondary btn-sm" onclick="removeUser('${u}')">Delete</button>
-        `;
+        const info = document.createElement('div');
+        const title = document.createElement('b');
+        title.textContent = `👤 ${u}`;
+        const schedule = document.createElement('small');
+        schedule.style.color = '#94a3b8';
+        schedule.textContent = `Schedule: ${windowStr}`;
+        info.append(title, document.createElement('br'), schedule);
+        const button = document.createElement('button');
+        button.className = 'btn btn-secondary btn-sm';
+        button.textContent = 'Delete';
+        button.addEventListener('click', () => window.removeUser(u));
+        li.append(info, button);
         userList.appendChild(li);
       });
     } catch (e) {
@@ -196,8 +222,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window.removeUser = async function(name) {
-    await fetch(`/api/users/${encodeURIComponent(name)}`, { method: 'DELETE' });
-    loadUsers();
+    try {
+      await managementFetch(`/api/users/${encodeURIComponent(name)}`, { method: 'DELETE' });
+      loadUsers();
+    } catch (err) { alert(err.message); }
   };
 
   btnSubmitEnroll.addEventListener('click', async () => {
@@ -216,7 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const formData = new FormData();
       formData.append('name', name);
 
-      const resp = await fetch('/api/enroll', { method: 'POST', body: formData });
+      const resp = await managementFetch('/api/enroll', { method: 'POST', body: formData });
       if (!resp.ok) {
         throw new Error(`Server returned HTTP ${resp.status}`);
       }
@@ -243,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 5. Judge Metrics Drawer
   async function refreshMetrics() {
     try {
-      const resp = await fetch('/api/metrics');
+      const resp = await managementFetch('/api/metrics');
       const raw = await resp.json();
       const data = raw.metrics;
       metricsTableBody.innerHTML = '';
@@ -260,7 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       for (const [k, v] of Object.entries(data)) {
         const tr = document.createElement('tr');
-        const rateLabel = k === "genuine_live" ? `BPCER: ${v.bpcer}%` : `APCER: ${v.apcer}%`;
+        const rateLabel = k === "genuine_live" ? `DENY: ${v.end_to_end_deny_rate ?? 'N/A'}%` : `ALLOW: ${v.end_to_end_allow_rate ?? 'N/A'}%`;
         tr.innerHTML = `
           <td><b>${labels[k] || k}</b></td>
           <td>${v.presentations}</td>
@@ -280,8 +308,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   btnResetMetrics.addEventListener('click', async () => {
     if (confirm("Reset all test metrics?")) {
-      await fetch('/api/reset_metrics', { method: 'POST' });
-      refreshMetrics();
+      try {
+        await managementFetch('/api/reset_metrics', { method: 'POST' });
+        refreshMetrics();
+      } catch (err) { alert(err.message); }
     }
   });
 
@@ -317,6 +347,4 @@ document.addEventListener('DOMContentLoaded', () => {
   btnCloseJudge.addEventListener('click', () => judgeDrawer.classList.add('hidden'));
   btnRefreshMetrics.addEventListener('click', refreshMetrics);
 
-  // Initial load
-  loadUsers();
 });
