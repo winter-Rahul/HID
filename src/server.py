@@ -132,7 +132,8 @@ def authenticate(req: AuthRequest, x_admin_token: Optional[str] = Header(None)):
     with pipeline_lock:
         result = pipeline.process_burst(scenario=req.scenario, simulated_hour=3) if simulated else pipeline.process_burst(scenario=req.scenario)
         if (not simulated and result.get("decision") == "STEP_UP_VERIFICATION" and
-                result.get("reason_code") in ("OFFLINE_VERIFICATION_REQUIRED", "BORDERLINE_IDENTITY", "UNCERTAIN_LIVENESS") and
+                result.get("reason_code") in ("OFFLINE_VERIFICATION_REQUIRED", "UNCERTAIN_LIVENESS") and
+                result.get("identity_match") is True and
                 result.get("matched_user") and result.get("schedule_allowed")):
             challenge = step_up.issue(result["matched_user"])
             if challenge:

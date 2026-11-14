@@ -27,6 +27,18 @@ def test_one_frame_cannot_allow():
     assert result["decision"] == "STEP_UP_VERIFICATION"
 
 
+def test_multiple_people_are_not_matched():
+    pipeline = make_pipeline([.95] * 3)
+    original_detect = pipeline.detector.detect
+    pipeline.detector.detect = lambda frame: {**original_detect(frame), "n_faces": 2}
+    def fail_if_called(*args):
+        raise AssertionError("Identity matching must not run with multiple people")
+    pipeline.recognizer.extract_feature = fail_if_called
+    result = pipeline.process_burst()
+    assert result["reason_code"] == "MULTIPLE_FACES"
+    assert "clear the background" in result["message"].lower()
+
+
 def test_identity_change_cannot_allow():
     vectors = [np.array([1., 0.]), np.array([1., 0.]), np.array([0., 1.])]
     assert make_pipeline([.95] * 3, features=vectors).process_burst()["reason_code"] == "INCONSISTENT_BURST"
@@ -40,6 +52,16 @@ def test_consistent_probe_matches_normalized_mean():
     assert pipeline.process_burst()["decision"] == "ALLOW"
     expected = np.mean(vectors, axis=0)
     np.testing.assert_allclose(seen[0], expected / np.linalg.norm(expected), rtol=1e-6)
+
+
+def test_blurry_frame_does_not_contaminate_probe():
+    vectors = [np.array([1., 0.]), np.array([1., 0.]), np.array([1., 0.]), np.array([.5, np.sqrt(.75)])]
+    pipeline = make_pipeline([.95] * 4, features=vectors)
+    pipeline.detector.detect = lambda frame: {"n_faces": 1, "laplacian_var": 5 if frame[0, 0, 0] == 3 else 100, "brightness": 100, "bbox": [0, 0, 100, 100], "raw_face": None}
+    seen = []
+    pipeline.recognizer.match = lambda feat: (seen.append(feat.copy()) or {"name": "Alice", "matched": True, "score": .9, "margin": .9})
+    assert pipeline.process_burst()["decision"] == "ALLOW"
+    np.testing.assert_allclose(seen[0], [1., 0.])
 
 
 def test_slow_spoof_stays_denied(monkeypatch):

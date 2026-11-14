@@ -70,7 +70,7 @@ class DecisionEngine:
             return {
                 "decision": "STEP_UP_VERIFICATION",
                 "reason_code": "MULTIPLE_FACES",
-                "message": "Multiple faces detected. Please ensure only one person is present.",
+                "message": "Multiple people detected. Please clear the background and keep only one person in front of the camera.",
                 "confidence": 0.0,
                 "allow": False,
                 "schedule_allowed": False,
@@ -125,6 +125,17 @@ class DecisionEngine:
                 "schedule_allowed": False,
             }
 
+        # Deny an unrecognized or borderline identity before offering any step-up.
+        id_matched = evidence.get("id_matched", False)
+        id_name = evidence.get("id_name", None)
+        id_score = evidence.get("id_score", 0.0)
+        if not id_name or not id_matched:
+            return {
+                "decision": "DENY", "reason_code": "IDENTITY_NOT_RECOGNIZED",
+                "message": "Identity not recognized. Only registered users may enter.",
+                "confidence": round(p_live, 4), "allow": False, "schedule_allowed": False,
+            }
+
         # 2. LIVENESS UNCERTAINTY ROUTING
         uncertainty = evidence.get("uncertainty", 0.0)
         if p_live < self.t_live or uncertainty > self.u_max_variance:
@@ -133,31 +144,6 @@ class DecisionEngine:
                 "reason_code": "UNCERTAIN_LIVENESS",
                 "message": "Liveness confidence is low or unstable. Recapture or secondary factor required.",
                 "confidence": round(p_live, 4),
-                "allow": False,
-                "schedule_allowed": False,
-            }
-
-        # 3. IDENTITY VERIFICATION
-        id_matched = evidence.get("id_matched", False)
-        id_name = evidence.get("id_name", None)
-        id_score = evidence.get("id_score", 0.0)
-
-        if not id_name:
-            return {
-                "decision": "DENY",
-                "reason_code": "IDENTITY_NOT_RECOGNIZED",
-                "message": "Live person confirmed, but face does not match any enrolled personnel.",
-                "confidence": round(p_live, 4),
-                "allow": False,
-                "schedule_allowed": False,
-            }
-
-        if not id_matched:
-            return {
-                "decision": "STEP_UP_VERIFICATION",
-                "reason_code": "BORDERLINE_IDENTITY",
-                "message": f"Identity match for {id_name} is borderline. Requesting verification PIN / OTP.",
-                "confidence": round(min(p_live, id_score), 4),
                 "allow": False,
                 "schedule_allowed": False,
             }

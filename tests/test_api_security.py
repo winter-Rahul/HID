@@ -103,7 +103,7 @@ def test_step_up_rechecks_schedule_and_is_single_use(client, monkeypatch, tmp_pa
     verifier.set_pin("Alice", "314159")
     monkeypatch.setattr(server, "step_up", verifier)
     pipeline.schedule_mgr.check_access = lambda name: {"allowed": True}
-    pipeline.process_burst = lambda **kwargs: {"decision": "STEP_UP_VERIFICATION", "reason_code": "OFFLINE_VERIFICATION_REQUIRED", "matched_user": "Alice", "schedule_allowed": True}
+    pipeline.process_burst = lambda **kwargs: {"decision": "STEP_UP_VERIFICATION", "reason_code": "OFFLINE_VERIFICATION_REQUIRED", "matched_user": "Alice", "identity_match": True, "schedule_allowed": True}
     response = api.post("/api/authenticate", json={"scenario": "genuine_live"})
     token = response.json()["step_up_challenge"]
     assert api.post("/api/step-up", json={"challenge": token, "pin": "314159"}).json()["decision"] == "ALLOW"
