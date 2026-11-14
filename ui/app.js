@@ -118,15 +118,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const scenario = scenarioSelect.value;
-      const resp = await fetch('/api/authenticate', {
+      const request = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scenario: scenario })
-      });
+      };
+      const resp = await managementFetch('/api/authenticate', request);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const data = await resp.json();
       displayResult(data);
     } catch (err) {
       console.error(err);
+      chkAutoScan.checked = false;
+      if (autoScanTimer) clearInterval(autoScanTimer);
+      autoScanTimer = null;
       outcomeVerdict.textContent = "CONNECTION ERROR";
       outcomeReason.textContent = "Could not reach kiosk inference service.";
     } finally {
@@ -346,5 +351,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   btnCloseJudge.addEventListener('click', () => judgeDrawer.classList.add('hidden'));
   btnRefreshMetrics.addEventListener('click', refreshMetrics);
+  fetch('/health').then(response => {
+    if (!response.ok) throw new Error('Health check failed');
+    return response.json();
+  }).then(status => {
+    chkOnlineToggle.checked = status.online_mode;
+    txtOnlineStatus.textContent = status.online_mode ? 'Online' : 'Offline';
+    offlineAlertBanner.classList.toggle('hidden', status.online_mode);
+  }).catch(console.error);
+  loadUsers();
 
 });

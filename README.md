@@ -8,20 +8,19 @@ From the project root on Windows, create a virtual environment, install dependen
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements-dev.txt
-$env:HID_ADMIN_TOKEN = '<a long, randomly generated management token>'
 python run_kiosk.py
 ```
 
-Open `http://127.0.0.1:8000` in a browser. A webcam and the three ONNX files in `models/` are required. Run the automated tests with `python -m pytest -q`. On macOS or Linux, activate the environment with `source .venv/bin/activate` instead.
+Open `http://127.0.0.1:8000` in a browser. A webcam and the three ONNX files in `models/` are required. The launcher loads `HID_ADMIN_TOKEN` from the project root's `.env` file; an existing environment variable takes precedence. If the token is unset, the launcher creates or reuses a random token in the ignored file `data/.admin_token`; retrieve it locally when the browser prompts for it. Run the automated tests with `python -m pytest -q`. On macOS or Linux, activate the environment with `source .venv/bin/activate` instead.
 
-This is a research prototype, not an access-control product. Management operations require the `HID_ADMIN_TOKEN` environment variable; the browser prompts for it when needed. Keep the token secret, bind the service to loopback, and use a secure administrative channel if remote operation is added. This shared token is not a complete user authentication system. Thresholds and model preprocessing require independent validation against genuine and attack presentations on the target hardware. The two-second target, attack detection rates, and reliability have not been established by automated tests. The online/offline switch is a manual demo control, and queued offline events are retained locally; no central-server synchronization is implemented. Biometric templates are stored locally in plaintext JSON. The existing `data/enrolled_users.json` is tracked by Git: review and remove any real biometric data from repository history before sharing it. Do not use this system to control real access or store real users' biometrics without addressing these gaps. The configuration YAML is currently illustrative; the pipeline uses hard-coded settings.
+This is a research prototype, not an access-control product. Management operations and scans require a token; the browser prompts for it when needed. Keep the token secret and bind the service to loopback. This shared token is not a complete user authentication system. The PAD implementation uses raw BGR pixels and class 1 as live, following the upstream Silent-Face implementation; the exporter model card describes different preprocessing and labels for the same model hash. Validate with live, printed and screen presentations before a demo. The two-second target, attack detection rates, and reliability have not been established by automated tests. The offline switch is manual and offline decisions require step-up. On reconnect, a local mock receiver durably acknowledges queued events in a local SQLite database; it is not a remote central server or a connectivity detector. Biometric templates are stored locally in plaintext JSON. The existing `data/enrolled_users.json` is tracked by Git: review and remove any real biometric data from repository history before sharing it. Do not use this system to control real access or store real users' biometrics without addressing these gaps. Core model paths, camera settings and decision thresholds are read from `configs/pipeline.yaml`; not every field in that file is implemented.
 
 The UI's end-to-end allow and deny rates are not PAD-only APCER or BPCER. Existing telemetry and the checked-in report may contain inconsistent or historical demo data and should not be presented as validated results. Record new consented, labelled trials under a documented protocol before reporting performance.
 
 > **Liveness Detection + Context-Aware Face Authentication Kiosk**
 > Status: 🟡 In Progress · Research complete · Building now
 
-The challenge requirements, architecture, proposed innovations, implementation plan, and Q&A below describe the original goals and demo plan. They are not a statement that all features have been implemented or validated. In particular, automatic synchronization, a nonce challenge, and an OTP/PIN verification flow are not implemented.
+The challenge requirements, architecture, proposed innovations, implementation plan, and Q&A below describe the original goals and demo plan. They are not a statement that all features have been implemented or validated. In particular, remote synchronization, a nonce challenge, and an OTP/PIN verification flow are not implemented. The admin-only schedule-violation scenario simulates 03:00; new enrollments receive a Monday–Friday 08:00–18:00 schedule. Existing schedules are not changed.
 
 ---
 
@@ -273,7 +272,7 @@ HID/
 | PAD model | MiniFASNet / Silent-Face (ONNX, open weights) |
 | Face recognition | ArcFace (ONNX) |
 | Context / Schedule | JSON / SQLite (offline-safe) |
-| Offline queue | Local JSON queue; server synchronization not implemented |
+| Offline queue | Local JSON queue with a local mock SQLite receiver; remote synchronization not implemented |
 | Evaluation | Python, scipy (Clopper-Pearson) |
 
 ---
@@ -283,7 +282,7 @@ HID/
 | Likely question | Our answer |
 |-----------------|------------|
 | What if a spoofer is also scheduled? | Spoof veto fires first — DENY always wins over schedule |
-| What happens offline? | The demo uses local matching and queues decisions locally; reconnecting does not sync them to a server. |
+| What happens offline? | The demo queues decisions locally; returning to online mode syncs them to a local mock receiver, not a remote server. |
 | What can't your system detect? | High-quality 3D silicone masks; deepfake video injection (architecture-level, not model-level) |
 | Why three states? | Uncertainty is real — honest escalation beats silent false accepts |
 | Are your accuracy numbers reliable? | We report Clopper-Pearson CIs; 50 attacks can only bound APCER <= 6% at 95% confidence |

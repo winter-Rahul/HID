@@ -43,9 +43,19 @@ def test_management_requires_configured_credential(client, monkeypatch):
 
 def test_client_cannot_override_authentication_time_or_health(client, monkeypatch):
     api, pipeline = client
-    response = api.post("/api/authenticate", json={"scenario": "schedule_violation", "simulated_hour": 12})
+    monkeypatch.setenv("HID_ADMIN_TOKEN", "secret")
+    response = api.post("/api/authenticate", json={"scenario": "genuine_live", "simulated_hour": 12}, headers={"X-Admin-Token": "secret"})
     assert response.status_code == 200
-    assert pipeline.calls == [{"scenario": "schedule_violation"}]
+    assert pipeline.calls == [{"scenario": "genuine_live"}]
     assert api.get("/health?offline=true").status_code == 200
-    assert pipeline.calls == [{"scenario": "schedule_violation"}]
+    assert pipeline.calls == [{"scenario": "genuine_live"}]
     assert api.post("/health?offline=true").status_code == 405
+
+
+def test_demo_clock_requires_admin(client, monkeypatch):
+    api, pipeline = client
+    monkeypatch.setenv("HID_ADMIN_TOKEN", "secret")
+    assert api.post("/api/authenticate", json={"scenario": "schedule_violation"}).status_code == 401
+    response = api.post("/api/authenticate", json={"scenario": "schedule_violation"}, headers={"X-Admin-Token": "secret"})
+    assert response.status_code == 200
+    assert pipeline.calls[-1]["simulated_hour"] == 3

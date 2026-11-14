@@ -181,19 +181,15 @@ class DecisionEngine:
         # 5. SURPRISE CHALLENGE 02: OFFLINE FAIL-SAFE GATE
         # "If the kiosk loses connection to central server — the system must NEVER fail open"
         if not online_mode:
-            # Under offline disconnection, grant access ONLY if explicitly verified by local offline model
-            # For guest/contractor or non-emergency staff, require STEP_UP_VERIFICATION
-            is_emergency = schedule_check.get("emergency_override", False)
-            if not is_emergency and id_score < 0.60:
-                return {
-                    "decision": "STEP_UP_VERIFICATION",
-                    "reason_code": "OFFLINE_VERIFICATION_REQUIRED",
-                    "message": f"Kiosk is Offline. Secondary credential required for {id_name} (Zero Fail-Open Mode).",
-                    "confidence": round(min(p_live, id_score), 4),
-                    "name": id_name,
-                    "allow": False,
-                    "schedule_allowed": True,
-                }
+            return {
+                "decision": "STEP_UP_VERIFICATION",
+                "reason_code": "OFFLINE_VERIFICATION_REQUIRED",
+                "message": f"Kiosk is offline. Secondary credential required for {id_name}.",
+                "confidence": round(min(p_live, id_score), 4),
+                "name": id_name,
+                "allow": False,
+                "schedule_allowed": True,
+            }
 
         # 6. PASSED ALL CHECKS -> ALLOW
         final_confidence = round(min(p_live, id_score), 4)

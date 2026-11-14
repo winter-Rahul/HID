@@ -19,6 +19,8 @@ class TelemetryLogger:
             "video_replay": {"presentations": 0, "allow": 0, "request": 0, "deny": 0, "latencies_ms": []},
             "paper_mask": {"presentations": 0, "allow": 0, "request": 0, "deny": 0, "latencies_ms": []},
             "unknown_person": {"presentations": 0, "allow": 0, "request": 0, "deny": 0, "latencies_ms": []},
+            "schedule_violation": {"presentations": 0, "allow": 0, "request": 0, "deny": 0, "latencies_ms": []},
+            "other": {"presentations": 0, "allow": 0, "request": 0, "deny": 0, "latencies_ms": []},
         }
         self.history: List[Dict[str, Any]] = []
         self._load()
@@ -29,7 +31,9 @@ class TelemetryLogger:
                 with open(self.output_file, "r") as f:
                     data = json.load(f)
                     self.scenarios.update(data.get("scenarios", {}))
-                    self.history = data.get("history", [])
+                    self.history = data.get("history", [])[-100:]
+                    for scenario in self.scenarios.values():
+                        scenario["latencies_ms"] = scenario.get("latencies_ms", [])[-1000:]
             except Exception as e:
                 print(f"[TelemetryLogger] Error loading metrics: {e}")
 
@@ -40,7 +44,7 @@ class TelemetryLogger:
 
     def record_decision(self, scenario: str, decision: str, latency_ms: float, metadata: Dict[str, Any]):
         if scenario not in self.scenarios:
-            scenario = "genuine_live"
+            scenario = "other"
 
         sc = self.scenarios[scenario]
         sc["presentations"] += 1
@@ -52,6 +56,7 @@ class TelemetryLogger:
             sc["deny"] += 1
 
         sc["latencies_ms"].append(round(latency_ms, 1))
+        sc["latencies_ms"] = sc["latencies_ms"][-1000:]
 
         record = {
             "timestamp": time.time(),
@@ -74,6 +79,7 @@ class TelemetryLogger:
             "timings": metadata.get("timings", {}),
         }
         self.history.append(record)
+        self.history = self.history[-100:]
         self.save()
 
     def get_summary(self) -> Dict[str, Any]:
