@@ -16,3 +16,12 @@ class MockCentral:
                 db.execute("INSERT OR IGNORE INTO audit_events VALUES (?, ?)",
                            (event["sync_id"], json.dumps(event)))
         return [event["sync_id"] for event in events]
+
+    def count(self):
+        if not os.path.exists(self.path):
+            return 0
+        with sqlite3.connect(self.path) as db:
+            try:
+                return db.execute("SELECT COUNT(*) FROM audit_events").fetchone()[0]
+            except sqlite3.OperationalError:
+                return 0

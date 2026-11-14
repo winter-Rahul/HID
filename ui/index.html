@@ -31,6 +31,7 @@
         <input type="checkbox" id="chkOnlineToggle" checked>
         <span class="toggle-slider"></span>
         <span id="txtOnlineStatus" class="toggle-label">Online</span>
+        <span id="txtSyncStatus" class="toggle-label">Audit: loading…</span>
       </label>
 
       <button id="btnEnrollModal" class="btn btn-secondary">➕ Enroll User</button>
@@ -177,12 +178,29 @@
         <p>Position your face in the camera, enter your name, and click Enroll to register your 128-D SFace biometric embedding.</p>
         <div class="enroll-form">
           <input type="text" id="txtEnrollName" placeholder="Enter Full Name (e.g. Alex Morgan)">
+          <input type="password" id="txtEnrollPin" inputmode="numeric" autocomplete="new-password" placeholder="Optional PIN (6–12 digits)">
+          <select id="enrollSchedule" aria-label="Access schedule">
+            <option value="always">Every day, 24 hours</option>
+            <option value="weekday">Monday–Friday, 08:00–18:00</option>
+          </select>
           <button id="btnSubmitEnroll" class="btn btn-primary">Enroll Current Face</button>
         </div>
         <div id="enrollStatus" class="enroll-status"></div>
         <hr>
         <h4>Enrolled Users &amp; Permitted Access Windows (<span id="userCount">0</span>)</h4>
         <ul id="userList" class="user-list"></ul>
+      </div>
+    </div>
+  </div>
+
+  <div id="stepUpModal" class="modal-backdrop hidden">
+    <div class="modal-content">
+      <div class="modal-header"><h3>Secondary verification</h3><button id="btnCancelStepUp" class="btn-close">&times;</button></div>
+      <div class="modal-body">
+        <p>Enter the PIN assigned during enrollment. The challenge expires after 60 seconds.</p>
+        <input id="stepUpPin" type="password" inputmode="numeric" autocomplete="off" placeholder="PIN">
+        <button id="btnVerifyStepUp" class="btn btn-primary">Verify</button>
+        <div id="stepUpStatus" class="enroll-status"></div>
       </div>
     </div>
   </div>
@@ -222,10 +240,10 @@
       <div class="bench-notes">
         <h4>Defense &amp; Surprise Challenge Highlights</h4>
         <ul>
-          <li><b>Hard Spoof Veto:</b> Liveness evaluated before identity. Spoofs are blocked unconditionally.</li>
+          <li><b>Spoof veto:</b> Detected attacks cannot be granted access. Detection accuracy requires labelled trials.</li>
           <li><b>Context-Aware Access Control:</b> Liveness alone does not grant access; campus schedule gates entry.</li>
           <li><b>Offline demo:</b> Decisions are queued and acknowledged by a local mock receiver when online mode is restored.</li>
-          <li><b>Sub-2s Latency:</b> Edge inference on local CPU completes in ~360&ndash;420 ms.</li>
+          <li><b>Latency:</b> Measure p50 and p95 on the demo hardware.</li>
         </ul>
       </div>
     </div>

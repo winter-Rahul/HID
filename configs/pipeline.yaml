@@ -2,8 +2,8 @@
 kiosk:
   name: "HID Fortified-PAD Kiosk"
   camera_index: 0
-  frame_width: 1280
-  frame_height: 720
+  frame_width: 640
+  frame_height: 480
   fps: 30
 
 capture:
@@ -17,8 +17,8 @@ detector:
   top_k: 10
 
 quality:
-  min_face_width: 120        # minimum face box width
-  min_face_height: 120
+  min_face_width: 80         # minimum face box width
+  min_face_height: 80
   min_laplacian_var: 40.0    # blur threshold (lower = blur)
   min_brightness: 40.0       # average intensity
   max_brightness: 240.0
