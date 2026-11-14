@@ -1,7 +1,7 @@
 # HID Hackathon 2026 — "Can You Spot a Spoof?"
 
-> **Liveness Detection + Face Authentication Kiosk**  
-> Status: 🟡 In Progress · Research complete · Implementation starting
+> **Liveness Detection + Context-Aware Face Authentication Kiosk**
+> Status: 🟡 In Progress · Research complete · Building now
 
 ---
 
@@ -10,37 +10,57 @@
 Build a **kiosk prototype** that runs the full pipeline:
 
 ```
-Capture → Liveness Check → Face Authentication → Decision (ALLOW / REQUEST VERIFICATION / DENY)
+Capture → Liveness Check → Face Authentication → Context Check → Decision
+                                                                    |
+                                              ALLOW / STEP-UP VERIFICATION / DENY
 ```
 
-**Requirements:**
-- ⏱ Complete pipeline in **≤ 2 seconds**
-- 🎭 Demonstrate against **at least 2 spoof types** (print, screen replay, video, paper mask)
-- 📊 Show **per-scenario results**: accuracy, false acceptance/rejection, decision time
-- ❓ Handle **low-confidence cases** with a third "REQUEST VERIFICATION" state (recapture, OTP, or simple action)
+**Core Requirements:**
+- Complete pipeline in **<= 2 seconds**
+- Demonstrate against **at least 2 spoof types** (print, screen replay, video, paper mask)
+- Show **per-scenario results**: accuracy, false acceptance/rejection, decision time
+- Handle **low-confidence cases** with STEP-UP VERIFICATION (recapture, OTP, or simple action)
+
+**Surprise Challenge — Secure Access Beyond Liveness:**
+
+> *"Recognising a live person is no longer enough for automatic entry"*
+
+### 01 Context-Aware Access Control
+- Liveness alone does NOT grant access
+- **Cross-reference the biometric match with the campus access schedule**
+- Three outcomes: **ALLOW** / **STEP-UP VERIFICATION** / **DENY**
+
+### 02 Offline Fail-Safe Mode
+- If the kiosk loses connection to the central server — **the system must NEVER fail open**
+- Switch to a safe local decision flow with **offline fallback verification**
+- Cache only the **minimum temporary data** needed for auditing — no raw biometrics
+- **Auto-sync** all offline decisions once connectivity returns
 
 ---
 
-## 🏗 Architecture — "Architecture B-lite" (Recommended)
+## 🏗 Architecture — "Architecture B-lite" + Surprise Layer
 
 ```
-┌─────────────┐     ┌──────────────────────────────────────┐     ┌──────────────────┐
-│  Webcam      │────▶│  Passive PAD Ensemble (8–10 frames,  │────▶│  Decision Engine │
-│  (RGB only)  │     │  ~0.7 s burst, ONNX Runtime)         │     │  (3-state output)│
-└─────────────┘     └──────────────────────────────────────┘     └──────────────────┘
-                             │                                             │
-                             ▼                                             ▼
-                    ┌─────────────────┐                        ALLOW / REQUEST VERIFICATION
-                    │ Face Recognition│                             / DENY
-                    │   Pipeline      │
-                    └─────────────────┘
-                             │
-                             ▼
-                    ┌─────────────────┐
-                    │  AWS (S3 +      │
-                    │  CloudWatch +   │
-                    │  Dashboard)     │
-                    └─────────────────┘
+┌─────────────┐   ┌────────────────────────┐   ┌────────────────────────┐
+│  Webcam      │──▶│  PAD Ensemble          │──▶│  Decision Engine       │
+│  (RGB only)  │   │  (8-10 frames, 0.7s)   │   │  3-state output        │
+└─────────────┘   └────────────────────────┘   └────────────┬───────────┘
+                           │                                 │
+                           ▼                                 ▼
+                  ┌─────────────────┐          ┌────────────────────────┐
+                  │ Face Recognition│          │ Context-Aware Layer    │
+                  │ (ArcFace ONNX)  │──────────▶ Cross-ref schedule DB  │
+                  └─────────────────┘          │ (online / offline)     │
+                                               └────────────┬───────────┘
+                                                            │
+                               ┌────────────────────────────┤
+                               │                            │
+                    ┌──────────▼──────┐          ┌──────────▼──────────┐
+                    │  ONLINE MODE    │          │  OFFLINE FAIL-SAFE  │
+                    │  Sync to server │          │  Local-only decision │
+                    │  Full audit log │          │  No raw biometrics   │
+                    └─────────────────┘          │  Queue sync on reconnect│
+                                                 └─────────────────────┘
 ```
 
 **Key design decisions:**
@@ -49,20 +69,21 @@ Capture → Liveness Check → Face Authentication → Decision (ALLOW / REQUEST
 |----------|--------|--------|
 | Sensor | RGB-only webcam | 2 s budget; no IR/depth hardware |
 | PAD strategy | Passive ensemble over short burst | No active challenge needed; faster |
-| Temporal logic | 8–10 frames ~0.7 s, aggregate scores | Avoids single-frame false spikes |
-| Decision states | ALLOW / REQUEST VERIFICATION / DENY | Covers uncertainty honestly |
+| Temporal logic | 8-10 frames ~0.7 s, aggregate scores | Avoids single-frame false spikes |
+| Decision states | ALLOW / STEP-UP VERIFICATION / DENY | Covers uncertainty + surprise challenge |
 | Hard veto | Spoof flag blocks identity even on match | Security-first pipeline |
-| Inference | ONNX Runtime (warm sessions) | Low latency, kiosk-friendly |
-| Backend | AWS S3 + CloudWatch | Logs, metrics, dashboard |
-
-**Fallback — Architecture A:** Same models, single-best-frame, no temporal logic. Used as baseline in ablation study.
+| Context check | Cross-ref identity with access schedule | Surprise challenge requirement |
+| Offline mode | Local fallback, never fail open | Surprise challenge requirement |
+| Inference | ONNX Runtime (warm sessions) | Low latency, kiosk-friendly, works offline |
 
 ---
 
 ## 💡 Innovations We Can Defend
 
-1. **Uncertainty-aware tri-state decisions** — evaluated with a selective-risk protocol measuring what fraction of genuine users get escalated per APCER level.
-2. **Nonce-based screen-light challenge** — used *only* on the escalation path; a pre-recorded replay cannot answer it, defeating video replay attacks without slowing the happy path.
+1. **Uncertainty-aware tri-state decisions** — selective-risk protocol: what fraction of genuine users get escalated per APCER level.
+2. **Nonce-based screen-light challenge** — used *only* on the STEP-UP path; a pre-recorded replay cannot answer it.
+3. **Context-Aware Access Control** — identity match alone is not sufficient; campus schedule gates the final ALLOW.
+4. **Offline Fail-Safe** — system degrades safely, never fails open, queues decisions for sync.
 
 ---
 
@@ -70,13 +91,11 @@ Capture → Liveness Check → Face Authentication → Decision (ALLOW / REQUEST
 
 | Criterion | Weight | What Wins | Our Plan |
 |-----------|--------|-----------|----------|
-| Problem-solution fit | 25% | Show we solve *spoofing*, not just recognition | Liveness is a separate, vetoing module; per-attack results; identity never overrides a spoof flag |
-| Innovation | 20% | A defensible, measurable idea over a baseline | Uncertainty-routed tri-state decision + nonce light challenge, with an ablation table |
-| Technical implementation | 25% | Feasible, modular, uses APIs/frameworks, scalable | ONNX Runtime kiosk, FastAPI service, S3/CloudWatch, reproducible eval scripts |
-| Functionality & usability | 15% | A working live demo | Webcam UI mirroring the poster, with latency and reason codes |
-| Presentation | 15% | Clear to non-technical judges, strong Q&A | Stage-by-stage story, per-scenario table, prepared answers |
-
-> **Lowest-risk strategy:** A demo that never crashes + a results table with honest confidence intervals + a clear statement of what the system *cannot* do.
+| Problem-solution fit | 25% | Show we solve *spoofing*, not just recognition | Liveness is vetoing; identity cross-checked with schedule; never fail open |
+| Innovation | 20% | A defensible, measurable idea over a baseline | Tri-state + context-aware access + offline fail-safe |
+| Technical implementation | 25% | Feasible, modular, uses APIs/frameworks, scalable | ONNX Runtime kiosk, FastAPI, offline queue, reproducible eval scripts |
+| Functionality & usability | 15% | A working live demo | Webcam UI with latency, reason codes, online/offline status indicator |
+| Presentation | 15% | Clear to non-technical judges, strong Q&A | Per-scenario table, honest caveats, surprise challenge addressed directly |
 
 ---
 
@@ -84,14 +103,15 @@ Capture → Liveness Check → Face Authentication → Decision (ALLOW / REQUEST
 
 | Metric | Definition | Note |
 |--------|-----------|------|
-| **APCER** (per attack species *s*) | Attack presentations classified as bona fide ÷ all presentations of *s* | Report **worst species**, not the average |
-| **BPCER** | Genuine presentations classified as attack ÷ all genuine | |
+| **APCER** (per attack species *s*) | Attack presentations classified as bona fide / all presentations of *s* | Report **worst species**, not the average |
+| **BPCER** | Genuine presentations classified as attack / all genuine | |
 | **ACER** | (APCER + BPCER) / 2 | Summary only; hides worst attack |
 | **EER** | Operating point where APCER = BPCER | Honest only if threshold set on dev set |
-| **Genuine escalation rate** | Genuine users routed to REQUEST VERIFICATION | Friction but not a false reject |
-| **Attack escalation rate** | Attacks routed to REQUEST VERIFICATION | Safe, not an acceptance |
+| **Genuine escalation rate** | Genuine users routed to STEP-UP VERIFICATION | Friction but not a false reject |
+| **Attack escalation rate** | Attacks routed to STEP-UP VERIFICATION | Safe, not an acceptance |
+| **Offline fail-open rate** | Decisions allowed during offline mode without local verification | Must be 0% |
 
-> ⚠️ **Statistics discipline:** Use Clopper-Pearson intervals, bootstrap over *subjects* (not frames), never tune thresholds on the test set.
+> **Stats discipline:** Clopper-Pearson 95% CIs, bootstrap over *subjects* not frames, never tune thresholds on the test set.
 
 ---
 
@@ -100,80 +120,101 @@ Capture → Liveness Check → Face Authentication → Decision (ALLOW / REQUEST
 ```
 HID/
 ├── README.md
-├── data/                    # Evaluation datasets (CelebA-Spoof, custom recordings)
-├── models/                  # ONNX model artifacts
-│   ├── pad_ensemble/        # Passive anti-spoofing models
-│   └── face_recognition/    # Face embedding model
+├── models/
+│   ├── pad/                 # MiniFASNet / Silent-Face ONNX
+│   └── face/                # ArcFace ONNX
 ├── src/
-│   ├── capture/             # Webcam capture & frame extraction
+│   ├── capture/             # Webcam burst capture (8-10 frames)
 │   ├── liveness/            # PAD ensemble inference
-│   ├── identity/            # Face recognition & matching
-│   ├── decision/            # 3-state decision engine
-│   ├── challenge/           # Nonce-based screen-light challenge
-│   └── api/                 # FastAPI service
-├── ui/                      # Kiosk frontend (webcam UI)
-├── eval/                    # Reproducible evaluation scripts
-├── aws/                     # CloudWatch / S3 logging config
+│   ├── identity/            # Face embedding + cosine match
+│   ├── decision/            # 3-state decision engine + hard veto
+│   ├── context/             # [NEW] Access schedule cross-reference
+│   ├── offline/             # [NEW] Offline fail-safe mode + sync queue
+│   └── api/                 # FastAPI /verify endpoint + pipeline.py
+├── ui/                      # Kiosk webcam frontend (Gradio / HTML)
+│                            #   includes online/offline status banner
+├── eval/                    # metrics.py + results.csv
 └── docs/
-    └── research.pdf         # HID Hackathon 2026 research brief
+    └── slides/              # Presentation deck
 ```
 
 ---
 
-## 🗓 Implementation Plan (10 Days)
+## 🗓 Implementation Plan — 5 Hours, 3 People
 
-### Phase 1 — Foundation (Days 1–2)
-- [ ] Set up repo structure, Python env, ONNX Runtime
-- [ ] Integrate webcam capture module (OpenCV, 8–10 frame burst)
-- [ ] Download/prepare base PAD model (MobileNetV2 or similar lightweight backbone)
-- [ ] AWS S3 + CloudWatch logging skeleton
-
-### Phase 2 — Core Pipeline (Days 3–4)
-- [ ] PAD ensemble inference + frame aggregation scoring
-- [ ] Face recognition pipeline (ArcFace or FaceNet, ONNX)
-- [ ] 3-state decision engine with configurable thresholds
-- [ ] Hard spoof veto logic (spoof flag blocks identity match)
-- [ ] FastAPI service wrapping the pipeline
-
-### Phase 3 — Innovation Layer (Days 5–6)
-- [ ] Uncertainty-aware routing (entropy / confidence score → escalation)
-- [ ] Nonce-based screen-light challenge for escalation path
-- [ ] Ablation table: Arch A (single frame) vs Arch B-lite (temporal ensemble)
-
-### Phase 4 — UI + Evaluation (Days 7–8)
-- [ ] Kiosk webcam UI (latency display, decision code, confidence)
-- [ ] Evaluation scripts: per-scenario APCER/BPCER, Clopper-Pearson CIs
-- [ ] Test against ≥ 2 spoof types: printed photo + screen/video replay
-- [ ] (Stretch) Paper/printed mask testing
-
-### Phase 5 — Polish + Presentation (Days 9–10)
-- [ ] Dashboard on CloudWatch for metrics
-- [ ] Demo hardening (never-crash mode, fallback to Arch A)
-- [ ] Slide deck: stage-by-stage story, results table, honest caveats
-- [ ] Prepare Q&A answers
+> **Event window: 11:15 AM - 4:17 PM** | Hard freeze: **3:45 PM** | Last 30 min = demo + pitch
 
 ---
 
-## 👥 Team & Work Split
+### Hour 1 — Setup & Skeleton `11:15 - 12:15`
+> **First 15 min all together:** clone repo, install deps, divide tasks. **Agree on the shared response contract:**
+> `{ decision, reason_code, liveness_score, identity_match, schedule_allowed, online_mode, latency_ms }`
 
-| Person | Role | Owns | Deliverable target |
-|--------|------|-------|--------------------|
-| **Member 1** | Capture & kiosk UI | Webcam capture/ring buffer, face detection and quality gates, kiosk screens, latency display (`src/capture/`, `src/detect/`, `src/quality/`, `ui/`) | Reliable capture flow; clear ALLOW / REQUEST VERIFICATION / DENY result with reason and elapsed time |
-| **Member 2** | PAD, identity & decision | PAD baseline and burst aggregation, face matching, thresholds, spoof veto, tri-state rules (`src/pad/`, `src/identity/`, `src/decision/`, `src/challenge/`, `models/`) | End-to-end decision contract; at least two tested spoof types; uncertain cases escalate and spoof evidence always blocks ALLOW |
-| **Member 3** | Integration, evaluation & demo | FastAPI/WebSocket integration, AWS S3/CloudWatch where sandbox permits, evaluation harness, metrics, results and demo (`src/api/`, `aws/`, `eval/`, `docs/`, `demo/`) | Working integrated flow; per-scenario results and confidence intervals; p50/p95/p99 latency; rehearsed demo and local fallback |
+| Who | Task |
+|-----|------|
+| **P1** | Python env + OpenCV + ONNX Runtime; write `src/capture/` — 8-10 frame burst from webcam |
+| **P2** | Download MiniFASNet / Silent-Face ONNX; write `src/liveness/` returning `{live: bool, score: float}` |
+| **P3** | Download ArcFace ONNX; write `src/identity/` embedding + cosine match; stub `src/context/` with a hardcoded schedule dict `{person_id: [allowed_hours]}` |
 
-### Shared integration contract
+**Exit:** Each module runs stand-alone on a test image. Contract struct agreed.
 
-Agree on this interface before parallel implementation. A request carries a session ID and a short sequence of frames (or a capture reference); the response contains `decision`, `reason_code`, `liveness_score`, `identity_match`, `identity_score`, `confidence`, and `latency_ms`. The UI and evaluation harness should be able to use a mock response until the real model pipeline is ready.
+---
 
-### Delivery gates
+### Hour 2 — Core Pipeline + Context Layer `12:15 - 1:15`
 
-1. **Walking skeleton:** camera → detector → single-frame PAD baseline → identity check → decision → UI, with latency logged. This is the working fallback and the baseline for comparison.
-2. **B-lite:** add 8–10-frame burst aggregation and uncertainty routing; keep identity and PAD parallel where practical, with a hard spoof veto.
-3. **Evidence:** freeze thresholds on development data, then evaluate genuine users and at least two spoof species on a subject/device-disjoint test set. Report APCER per attack species, BPCER, genuine and attack escalation rates, false accepts/rejects, and Clopper–Pearson intervals. Aggregate by presentation/session, not individual frames.
-4. **Performance and demo:** measure end-to-end time from the agreed trigger through displayed decision; target ≤2 seconds and report percentiles. Keep the app local-first; AWS telemetry/dashboard is secondary and must not enter the decision path.
+| Who | Task |
+|-----|------|
+| **P1** | Integrate capture → liveness: aggregate burst frame scores, return final `{live, score}` |
+| **P2** | Write `src/decision/` — 3-state engine: **hard veto if spoofed → DENY**; if live, check `schedule_allowed` → ALLOW or STEP-UP VERIFICATION; write `src/offline/` stub that flags `online=False` and queues decision locally |
+| **P3** | Complete `src/context/` schedule checker (time-of-day + person_id lookup); glue everything in `pipeline.py`; expose `FastAPI POST /verify`; add `/health` that toggles online/offline mode for demo |
 
-Each member owns their listed directories and commits small, reviewable changes. Member 3 coordinates shared interfaces and integration. All three jointly run the final evaluation and rehearse the demo. If the deadline is shorter than ten days, preserve the walking skeleton and evaluation first; treat the nonce challenge, AWS dashboard, and mask testing as stretch goals.
+**Exit:** `POST /verify` returns a decision JSON in < 2 s. Toggling `/health?offline=true` triggers offline fallback (never ALLOW without local verification).
+
+---
+
+### Hour 3 — UI + Spoof Attack Tests `1:15 - 2:15`
+
+| Who | Task |
+|-----|------|
+| **P1** | Kiosk UI: live webcam feed, decision badge (green/orange/red), confidence, latency, **online/offline status banner** |
+| **P2** | Run attacks: **printed photo** + **screen/video replay**. Also test: **schedule-denied identity** (valid face, outside allowed hours → DENY). Log all to `eval/results.csv` |
+| **P3** | Write `eval/metrics.py` — APCER/BPCER per attack type, Clopper-Pearson 95% CI; also log offline-mode decisions and confirm zero fail-opens |
+
+**Exit:** UI works end-to-end; >= 2 spoof types + 1 schedule-denial tested and logged.
+
+---
+
+### Hour 4 — Results Table + Slides `2:15 - 3:15`
+
+| Who | Task |
+|-----|------|
+| **P1** | Demo hardening: catch all exceptions; fallback to Arch A (single frame) if burst fails; **if offline and no local cache match → always DENY, never ALLOW** |
+| **P2** | Fill results table (per-scenario APCER / BPCER / decision-time / escalation rate); add offline mode test result row; write honest caveats |
+| **P3** | Slide deck (6 slides): Problem → Surprise Challenge → Architecture → Innovation → Results table → Live demo + Limitations |
+
+**Exit:** Slides done, demo runs cleanly 3x in a row (once in offline mode).
+
+---
+
+### Hour 5 — Buffer + Presentation Prep `3:15 - 4:17`
+
+- [ ] Final dry-run: demo in **online mode** then toggle to **offline mode** mid-demo
+- [ ] Rehearse 2-min pitch + anticipated Q&A (see Q&A prep below)
+- [ ] Push final code, tag `v1.0-hackathon`
+- [ ] **Hard freeze at 3:45 PM — zero new features after this**
+
+---
+
+## 👥 Team & Work Split (3 People)
+
+| Person | Role | Owns throughout |
+|--------|------|-----------------|
+| **P1** | Capture & UI Lead | Webcam burst, frame aggregation, kiosk UI with online/offline banner, demo hardening (`src/capture/`, `ui/`) |
+| **P2** | Liveness, Decision & Offline Lead | PAD inference, 3-state engine, hard spoof veto, context-aware schedule check, offline fail-safe, attack testing, results table (`src/liveness/`, `src/decision/`, `src/offline/`, `eval/`) |
+| **P3** | Pipeline, Context & Slides Lead | FastAPI glue, identity matching, schedule checker, `pipeline.py`, slide deck (`src/api/`, `src/identity/`, `src/context/`, `docs/`) |
+
+> **Sync:** 5-min standup at the top of each hour — blocked? swap tasks immediately.
+> **P1 owns the live demo** in the final 30 min — only they touch the running app.
 
 ---
 
@@ -181,15 +222,23 @@ Each member owns their listed directories and commits small, reviewable changes.
 
 | Attack Type | In Scope | Planned Demo |
 |-------------|----------|--------------|
-| Printed photo (flat) | ✅ | ✅ |
-| Phone/screen photo | ✅ | ✅ |
-| Screen/video replay | ✅ | ✅ |
-| Paper mask | ✅ | ✅ (stretch) |
-| 3D silicone/resin mask | ⚠️ Out of model scope | Acknowledge limitation |
-| Camera-stream injection / virtual camera | ⚠️ Architecture scope | Mention in threat model |
-| Deepfake stream | ⚠️ Architecture scope | Mention in threat model |
+| Printed photo (flat) | Yes | Yes |
+| Phone/screen photo | Yes | Yes |
+| Screen/video replay | Yes | Yes |
+| Schedule-denied valid identity | Yes (surprise challenge) | Yes |
+| Offline mode — forced DENY | Yes (surprise challenge) | Yes |
+| Paper mask | Yes | Stretch |
+| 3D silicone/resin mask | Out of model scope | Acknowledge limitation |
+| Deepfake / virtual camera | Architecture scope | Mention in threat model |
 
-> **3D masks note:** An RGB-only camera cannot reliably detect high-quality silicone or resin masks. We will demonstrate printed/paper masks and explicitly state this limit — the poster example says "Mask (3D / Printed)" so printed masks are the primary target.
+---
+
+## 🛡 Offline Fail-Safe Rules (Never Break These)
+
+1. **Never fail open** — no connectivity = no ALLOW without local match
+2. **No raw biometrics cached** — store only hashed embeddings + decision + timestamp
+3. **Queue all offline decisions** — auto-sync to server when connectivity returns
+4. **Degrade gracefully** — UI shows offline banner; STEP-UP VERIFICATION still available locally
 
 ---
 
@@ -197,14 +246,27 @@ Each member owns their listed directories and commits small, reviewable changes.
 
 | Layer | Technology |
 |-------|-----------|
-| Inference runtime | ONNX Runtime (warm sessions) |
+| Inference runtime | ONNX Runtime (warm sessions, works offline) |
 | Capture | OpenCV |
 | API | FastAPI (Python) |
-| Frontend | HTML/JS or Gradio |
-| Cloud | AWS S3, CloudWatch |
-| PAD backbone | MobileNetV2 / CDCNet (research-only license) |
-| Face recognition | ArcFace / FaceNet (ONNX) |
-| Evaluation | Python, scikit-learn, Clopper-Pearson |
+| Frontend | Gradio or HTML/JS |
+| PAD model | MiniFASNet / Silent-Face (ONNX, open weights) |
+| Face recognition | ArcFace (ONNX) |
+| Context / Schedule | JSON / SQLite (offline-safe) |
+| Offline queue | SQLite local store + sync on reconnect |
+| Evaluation | Python, scipy (Clopper-Pearson) |
+
+---
+
+## 🎤 Q&A Prep
+
+| Likely question | Our answer |
+|-----------------|------------|
+| What if a spoofer is also scheduled? | Spoof veto fires first — DENY always wins over schedule |
+| What happens offline? | Local embedding match only, never ALLOW without it; all offline decisions queued and synced |
+| What can't your system detect? | High-quality 3D silicone masks; deepfake video injection (architecture-level, not model-level) |
+| Why three states? | Uncertainty is real — honest escalation beats silent false accepts |
+| Are your accuracy numbers reliable? | We report Clopper-Pearson CIs; 50 attacks can only bound APCER <= 6% at 95% confidence |
 
 ---
 
@@ -212,21 +274,20 @@ Each member owns their listed directories and commits small, reviewable changes.
 
 | # | Paper | Relevance |
 |---|-------|-----------|
-| 7 | Yu et al., *CDC Networks*, CVPR 2020 | 0.2% ACER on OULU-NPU P1 — research reference (non-commercial) |
-| 14 | Kim et al., *ECLIPS*, CVPRW 2024 | CLIP ViT backbone, Monte-Carlo dropout, video-level metric aggregation |
-| 15 | Zhang et al., *CelebA-Spoof*, ECCV 2020 | 625K images, 10K+ subjects, 43 attributes — evaluation dataset |
+| 7 | Yu et al., *CDC Networks*, CVPR 2020 | 0.2% ACER on OULU-NPU P1 — research reference |
+| 14 | Kim et al., *ECLIPS*, CVPRW 2024 | CLIP ViT backbone, video-level metric aggregation |
+| 15 | Zhang et al., *CelebA-Spoof*, ECCV 2020 | 625K images, 10K+ subjects — evaluation dataset |
 | 25 | Lorenz et al., *Foundation Models for Face PAD*, IJCB 2026 | Cross-dataset not reliable — honest benchmark caveat |
-| extra | Li et al., *OT-Guided Adaptation*, CVPR 2025 | 19.17% avg HTER improvement via kiosk-camera adaptation |
 
 ---
 
-## ⚠️ Honest Caveats
+## Honest Caveats
 
 - Published 99.4% / 99.2% / 0.2% FAR / 0.6% FRR figures are **reference targets**, not guaranteed results.
-- Cross-dataset error rates are far higher (single-to-double digit HTER range).
-- 50 attack presentations showing 0 failures only bounds APCER ≤ 6% at 95% confidence — not 0.2%.
-- We will report Clopper-Pearson intervals and state what the system cannot do.
+- Cross-dataset error rates are far higher (single to double digit HTER range).
+- 50 attack presentations showing 0 failures only bounds APCER <= 6% at 95% confidence.
+- We report confidence intervals and explicitly state what the system cannot do.
 
 ---
 
-*Research brief: HID Hackathon 2026 — "Can You Spot a Spoof?" · Prepared 14 Nov 2026*
+*HID Hackathon 2026 — "Can You Spot a Spoof?" + Surprise Challenge: "Secure Access Beyond Liveness" | 14 Nov 2026*
