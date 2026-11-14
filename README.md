@@ -8,12 +8,13 @@ From the project root on Windows, create a virtual environment, install dependen
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements-dev.txt
+$env:HID_ADMIN_TOKEN = '<a long, randomly generated management token>'
 python run_kiosk.py
 ```
 
 Open `http://127.0.0.1:8000` in a browser. A webcam and the three ONNX files in `models/` are required. Run the automated tests with `python -m pytest -q`. On macOS or Linux, activate the environment with `source .venv/bin/activate` instead.
 
-This is a research prototype, not an access-control product. Thresholds and model preprocessing require independent validation against genuine and attack presentations on the target hardware. The two-second target, attack detection rates, and reliability have not been established by automated tests. The online/offline switch is a manual demo control, and queued offline events are retained locally; no central-server synchronization is implemented. Enrollment is not protected by an administrator login, and biometric templates are stored locally in plaintext JSON. The existing `data/enrolled_users.json` is tracked by Git: review and remove any real biometric data from repository history before sharing it. Do not use this system to control real access or store real users' biometrics without addressing these gaps. The configuration YAML is currently illustrative; the pipeline uses hard-coded settings.
+This is a research prototype, not an access-control product. Management operations require the `HID_ADMIN_TOKEN` environment variable; the browser prompts for it when needed. Keep the token secret, bind the service to loopback, and use a secure administrative channel if remote operation is added. This shared token is not a complete user authentication system. Thresholds and model preprocessing require independent validation against genuine and attack presentations on the target hardware. The two-second target, attack detection rates, and reliability have not been established by automated tests. The online/offline switch is a manual demo control, and queued offline events are retained locally; no central-server synchronization is implemented. Biometric templates are stored locally in plaintext JSON. The existing `data/enrolled_users.json` is tracked by Git: review and remove any real biometric data from repository history before sharing it. Do not use this system to control real access or store real users' biometrics without addressing these gaps. The configuration YAML is currently illustrative; the pipeline uses hard-coded settings.
 
 The UI's end-to-end allow and deny rates are not PAD-only APCER or BPCER. Existing telemetry and the checked-in report may contain inconsistent or historical demo data and should not be presented as validated results. Record new consented, labelled trials under a documented protocol before reporting performance.
 
