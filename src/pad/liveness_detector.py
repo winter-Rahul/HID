@@ -1,6 +1,7 @@
 """
 Passive Presentation Attack Detection (PAD) Module
 Combines MiniFASNet deep neural network + Fourier/Moiré texture analyzer.
+Supports automatic CUDA GPU acceleration when available, with seamless CPU fallback.
 """
 import os
 import cv2
@@ -28,13 +29,22 @@ class LivenessDetector:
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"PAD model not found at {model_path}")
 
-        # Initialize ONNX Runtime session
+        # Auto-detect CUDA for GPU execution if available (e.g., friend's machine)
+        available_providers = ort.get_available_providers()
+        if "CUDAExecutionProvider" in available_providers:
+            providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+            self.device_used = "CUDA GPU"
+        else:
+            providers = ["CPUExecutionProvider"]
+            self.device_used = "CPU"
+
         opts = ort.SessionOptions()
         opts.intra_op_num_threads = 2
         opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-        self.session = ort.InferenceSession(model_path, sess_options=opts, providers=["CPUExecutionProvider"])
+        self.session = ort.InferenceSession(model_path, sess_options=opts, providers=providers)
         self.input_name = self.session.get_inputs()[0].name
         self.texture_analyzer = TextureAnalyzer()
+        print(f"[LivenessDetector] Loaded MiniFASNet with providers: {providers} (Running on {self.device_used})")
 
     def _get_scaled_crop(self, frame: np.ndarray, bbox: List[int], scale: float = 2.7) -> np.ndarray:
         """
@@ -43,11 +53,9 @@ class LivenessDetector:
         h, w = frame.shape[:2]
         x, y, fw, fh = bbox
 
-        # Center of face
         cx = x + fw / 2.0
         cy = y + fh / 2.0
 
-        # Scaled width and height
         sw = fw * scale
         sh = fh * scale
 
@@ -64,9 +72,10 @@ class LivenessDetector:
     def predict_frame(self, frame: np.ndarray, bbox: List[int]) -> Dict[str, Any]:
         """
         Runs PAD inference on a single frame.
+        Preprocessing: 80x80 BGR resized, normalized to [0.0, 1.0] via / 255.0 (PyTorch ToTensor convention).
         """
         scaled_crop = self._get_scaled_crop(frame, bbox, scale=2.7)
-        resized = cv2.resize(scaled_crop, (80, 80)).astype(np.float32)
+        resized = cv2.resize(scaled_crop, (80, 80)).astype(np.float32) / 255.0
 
         # Transpose (H, W, C) -> (1, C, H, W)
         blob = np.transpose(resized, (2, 0, 1))[np.newaxis, ...]
@@ -74,10 +83,9 @@ class LivenessDetector:
         # Model forward pass
         raw_out = self.session.run(None, {self.input_name: blob})[0]  # shape (1, 3)
 
-        # Softmax probabilities
+        # Softmax probabilities: index 1 is verified bona fide Real
         exp_vals = np.exp(raw_out - np.max(raw_out, axis=1, keepdims=True))
         probs = exp_vals / np.sum(exp_vals, axis=1, keepdims=True)
-        # Class 1 is bona fide / live
         p_live_deep = float(probs[0, 1])
 
         # Texture and moiré frequency analysis

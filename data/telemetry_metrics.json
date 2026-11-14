@@ -1,12 +1,28 @@
 {
   "scenarios": {
     "genuine_live": {
-      "presentations": 1,
+      "presentations": 17,
       "allow": 0,
       "request": 0,
-      "deny": 1,
+      "deny": 14,
       "latencies_ms": [
-        362.8
+        362.8,
+        436.6,
+        342.0,
+        362.9,
+        335.5,
+        370.8,
+        354.8,
+        355.0,
+        349.8,
+        336.1,
+        342.8,
+        352.4,
+        368.8,
+        423.5,
+        334.4,
+        349.6,
+        359.6
       ]
     },
     "printed_photo": {
@@ -38,11 +54,14 @@
       "latencies_ms": []
     },
     "unknown_person": {
-      "presentations": 0,
+      "presentations": 2,
       "allow": 0,
       "request": 0,
       "deny": 0,
-      "latencies_ms": []
+      "latencies_ms": [
+        328.7,
+        391.4
+      ]
     }
   },
   "history": [
@@ -53,6 +72,186 @@
       "latency_ms": 362.8,
       "reason_code": "NO_FACE_DETECTED",
       "confidence": 0.0,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794638114.4855661,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 436.6,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8211,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794638121.42402,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 342.0,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8213,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794638150.5137029,
+      "scenario": "unknown_person",
+      "decision": "STEP_UP_VERIFICATION",
+      "latency_ms": 328.7,
+      "reason_code": "MULTIPLE_FACES",
+      "confidence": 0.0,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794638154.0902581,
+      "scenario": "unknown_person",
+      "decision": "STEP_UP_VERIFICATION",
+      "latency_ms": 391.4,
+      "reason_code": "MULTIPLE_FACES",
+      "confidence": 0.0,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794638169.3267436,
+      "scenario": "genuine_live",
+      "decision": "STEP_UP_VERIFICATION",
+      "latency_ms": 362.9,
+      "reason_code": "MULTIPLE_FACES",
+      "confidence": 0.0,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794638352.5944164,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 335.5,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8215,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794638354.5837002,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 370.8,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8214,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794638355.8677773,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 354.8,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8214,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794638356.709022,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 355.0,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8216,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794638357.4484322,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 349.8,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8216,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794638358.7242002,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 336.1,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8215,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794638361.0671995,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 342.8,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8215,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794638362.3354897,
+      "scenario": "genuine_live",
+      "decision": "STEP_UP_VERIFICATION",
+      "latency_ms": 352.4,
+      "reason_code": "IMAGE_BLURRY",
+      "confidence": 0.4,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794638363.5691783,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 368.8,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8214,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794638364.5670362,
+      "scenario": "genuine_live",
+      "decision": "STEP_UP_VERIFICATION",
+      "latency_ms": 423.5,
+      "reason_code": "MULTIPLE_FACES",
+      "confidence": 0.0,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794638365.7125845,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 334.4,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8215,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794638366.5900974,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 349.6,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8213,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794638367.4403644,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 359.6,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8216,
       "p_live": 0.0,
       "id_score": 0.0
     }

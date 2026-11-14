@@ -95,6 +95,31 @@ def test_context_schedule_violation():
     assert result["reason_code"] == "SCHEDULE_VIOLATION"
 
 
+def test_multiple_faces_trigger_step_up():
+    """Verify that multiple faces detected in view routes to STEP_UP_VERIFICATION (anti-tailgating)."""
+    engine = DecisionEngine()
+    
+    evidence = {
+        "n_faces": 2,                 # Tailgater / multiple people
+        "bbox": [50, 50, 150, 150],
+        "laplacian_var": 120.0,
+        "brightness": 110.0,
+        "p_live": 0.95,
+        "strong_attack_cue": False,
+        "id_matched": True,
+        "id_name": "Alex Morgan",
+        "id_score": 0.88,
+        "uncertainty": 0.02,
+        "online_mode": True,
+        "error": False,
+    }
+    
+    result = engine.decide(evidence)
+    assert result["decision"] == "STEP_UP_VERIFICATION"
+    assert result["allow"] is False
+    assert result["reason_code"] == "MULTIPLE_FACES"
+
+
 def test_offline_fail_safe_zero_fail_open():
     """Surprise Challenge 02: System never fails open when disconnected; requires step-up verification."""
     engine = DecisionEngine()

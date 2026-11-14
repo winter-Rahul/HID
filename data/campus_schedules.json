@@ -67,5 +67,23 @@
       "Building B"
     ],
     "emergency_override": false
+  },
+  "Mohammed Faizan": {
+    "role": "Employee",
+    "department": "Campus Staff",
+    "days": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri"
+    ],
+    "start_hour": 8,
+    "end_hour": 18,
+    "allowed_zones": [
+      "Main Gate",
+      "Offices"
+    ],
+    "emergency_override": false
   }
 }

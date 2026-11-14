@@ -146,8 +146,9 @@ class KioskPipeline:
             sched_check = self.schedule_mgr.check_access(id_res["name"], simulated_hour=test_hour)
 
         # 6. Evidence fusion
+        n_faces = best_face_det.get("n_faces", 1)
         evidence = {
-            "n_faces": 1,
+            "n_faces": n_faces,
             "bbox": best_face_det["bbox"],
             "laplacian_var": best_face_det["laplacian_var"],
             "brightness": best_face_det["brightness"],
