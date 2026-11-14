@@ -265,8 +265,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.removeUser = async function(name) {
     try {
-      await managementFetch(`/api/users/${encodeURIComponent(name)}`, { method: 'DELETE' });
-      loadUsers();
+      const response = await managementFetch(`/api/users/${encodeURIComponent(name)}`, { method: 'DELETE' });
+      const result = await response.json();
+      if (!result.success) throw new Error(result.message || `Could not delete ${name}.`);
+      await loadUsers();
+      alert(result.message || `Deleted ${name}.`);
     } catch (err) { alert(err.message); }
   };
 
