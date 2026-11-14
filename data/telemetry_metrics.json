@@ -1,10 +1,10 @@
 {
   "scenarios": {
     "genuine_live": {
-      "presentations": 39,
-      "allow": 0,
-      "request": 0,
-      "deny": 34,
+      "presentations": 64,
+      "allow": 13,
+      "request": 5,
+      "deny": 41,
       "latencies_ms": [
         362.8,
         436.6,
@@ -44,7 +44,32 @@
         491.6,
         454.8,
         489.7,
-        365.1
+        365.1,
+        503.4,
+        438.4,
+        377.0,
+        441.9,
+        436.7,
+        664.9,
+        387.3,
+        488.3,
+        542.5,
+        403.9,
+        372.1,
+        655.2,
+        510.2,
+        370.1,
+        404.4,
+        429.6,
+        349.9,
+        427.1,
+        531.4,
+        336.8,
+        379.8,
+        488.2,
+        397.9,
+        415.4,
+        402.5
       ]
     },
     "printed_photo": {
@@ -496,6 +521,506 @@
       "confidence": 0.8855,
       "p_live": 0.0,
       "id_score": 0.0
+    },
+    {
+      "timestamp": 1794640897.5200768,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 503.4,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8198,
+      "p_live": 0.1802,
+      "id_score": 0.662,
+      "identity_match": true,
+      "matched_user": "Faizan",
+      "moire_detected": false,
+      "timings": {
+        "capture_ms": 3.0,
+        "detect_pad_ms": 398.9,
+        "pad_agg_ms": 30.1,
+        "identity_ms": 71.2,
+        "decision_ms": 0.0
+      }
+    },
+    {
+      "timestamp": 1794640921.0883317,
+      "scenario": "genuine_live",
+      "decision": "STEP_UP_VERIFICATION",
+      "latency_ms": 438.4,
+      "reason_code": "IMAGE_BLURRY",
+      "confidence": 0.4,
+      "p_live": 0.1803,
+      "id_score": 0.7933,
+      "identity_match": true,
+      "matched_user": "pavan",
+      "moire_detected": false,
+      "timings": {
+        "capture_ms": 4.0,
+        "detect_pad_ms": 411.3,
+        "pad_agg_ms": 0.9,
+        "identity_ms": 22.1,
+        "decision_ms": 0.0
+      }
+    },
+    {
+      "timestamp": 1794640931.067886,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 377.0,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8898,
+      "p_live": 0.1102,
+      "id_score": 0.824,
+      "identity_match": true,
+      "matched_user": "pavan",
+      "moire_detected": false,
+      "timings": {
+        "capture_ms": 2.8,
+        "detect_pad_ms": 349.4,
+        "pad_agg_ms": 0.6,
+        "identity_ms": 23.9,
+        "decision_ms": 0.0
+      }
+    },
+    {
+      "timestamp": 1794640976.9867997,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 441.9,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8198,
+      "p_live": 0.1802,
+      "id_score": 0.7214,
+      "identity_match": true,
+      "matched_user": "Faizan",
+      "moire_detected": false,
+      "timings": {
+        "capture_ms": 3.0,
+        "detect_pad_ms": 408.1,
+        "pad_agg_ms": 1.0,
+        "identity_ms": 29.5,
+        "decision_ms": 0.0
+      }
+    },
+    {
+      "timestamp": 1794640997.7890685,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 436.7,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8198,
+      "p_live": 0.1802,
+      "id_score": 0.6758,
+      "identity_match": true,
+      "matched_user": "Faizan",
+      "moire_detected": false,
+      "timings": {
+        "capture_ms": 2.3,
+        "detect_pad_ms": 409.4,
+        "pad_agg_ms": 0.6,
+        "identity_ms": 24.2,
+        "decision_ms": 0.0
+      }
+    },
+    {
+      "timestamp": 1794641007.3348756,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 664.9,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8198,
+      "p_live": 0.1802,
+      "id_score": 0.7189,
+      "identity_match": true,
+      "matched_user": "Faizan",
+      "moire_detected": false,
+      "timings": {
+        "capture_ms": 4.3,
+        "detect_pad_ms": 622.7,
+        "pad_agg_ms": 0.8,
+        "identity_ms": 37.0,
+        "decision_ms": 0.0
+      }
+    },
+    {
+      "timestamp": 1794641074.775965,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 387.3,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8198,
+      "p_live": 0.1802,
+      "id_score": 0.7105,
+      "identity_match": true,
+      "matched_user": "Faizan",
+      "moire_detected": false,
+      "timings": {
+        "capture_ms": 2.2,
+        "detect_pad_ms": 361.3,
+        "pad_agg_ms": 0.8,
+        "identity_ms": 22.8,
+        "decision_ms": 0.0
+      }
+    },
+    {
+      "timestamp": 1794641358.9423232,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 488.3,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8155,
+      "p_live": 0.1845,
+      "id_score": 0.7375,
+      "identity_match": true,
+      "matched_user": "Faizan",
+      "moire_detected": false,
+      "timings": {
+        "capture_ms": 2.5,
+        "detect_pad_ms": 394.9,
+        "pad_agg_ms": 28.7,
+        "identity_ms": 62.0,
+        "decision_ms": 0.0
+      }
+    },
+    {
+      "timestamp": 1794643158.9303486,
+      "scenario": "genuine_live",
+      "decision": "ALLOW",
+      "latency_ms": 542.5,
+      "reason_code": "ACCESS_GRANTED",
+      "confidence": 0.7524,
+      "p_live": 0.9752,
+      "id_score": 0.7524,
+      "identity_match": true,
+      "matched_user": "Faizan",
+      "moire_detected": false,
+      "timings": {
+        "capture_ms": 2.7,
+        "detect_pad_ms": 417.5,
+        "pad_agg_ms": 33.5,
+        "identity_ms": 88.6,
+        "decision_ms": 0.0
+      }
+    },
+    {
+      "timestamp": 1794643173.5475214,
+      "scenario": "genuine_live",
+      "decision": "ALLOW",
+      "latency_ms": 403.9,
+      "reason_code": "ACCESS_GRANTED",
+      "confidence": 0.656,
+      "p_live": 0.9752,
+      "id_score": 0.656,
+      "identity_match": true,
+      "matched_user": "Faizan",
+      "moire_detected": false,
+      "timings": {
+        "capture_ms": 2.2,
+        "detect_pad_ms": 379.0,
+        "pad_agg_ms": 0.6,
+        "identity_ms": 22.0,
+        "decision_ms": 0.0
+      }
+    },
+    {
+      "timestamp": 1794643223.2140088,
+      "scenario": "genuine_live",
+      "decision": "ALLOW",
+      "latency_ms": 372.1,
+      "reason_code": "ACCESS_GRANTED",
+      "confidence": 0.5886,
+      "p_live": 0.976,
+      "id_score": 0.5886,
+      "identity_match": true,
+      "matched_user": "Faizan",
+      "moire_detected": false,
+      "timings": {
+        "capture_ms": 2.2,
+        "detect_pad_ms": 348.4,
+        "pad_agg_ms": 0.8,
+        "identity_ms": 20.4,
+        "decision_ms": 0.0
+      }
+    },
+    {
+      "timestamp": 1794643230.5839875,
+      "scenario": "genuine_live",
+      "decision": "ALLOW",
+      "latency_ms": 655.2,
+      "reason_code": "ACCESS_GRANTED",
+      "confidence": 0.6624,
+      "p_live": 0.9757,
+      "id_score": 0.6624,
+      "identity_match": true,
+      "matched_user": "Faizan",
+      "moire_detected": false,
+      "timings": {
+        "capture_ms": 5.6,
+        "detect_pad_ms": 545.9,
+        "pad_agg_ms": 2.9,
+        "identity_ms": 100.5,
+        "decision_ms": 0.0
+      }
+    },
+    {
+      "timestamp": 1794643237.6183596,
+      "scenario": "genuine_live",
+      "decision": "ALLOW",
+      "latency_ms": 510.2,
+      "reason_code": "ACCESS_GRANTED",
+      "confidence": 0.6377,
+      "p_live": 0.9758,
+      "id_score": 0.6377,
+      "identity_match": true,
+      "matched_user": "Faizan",
+      "moire_detected": false,
+      "timings": {
+        "capture_ms": 4.8,
+        "detect_pad_ms": 476.8,
+        "pad_agg_ms": 1.6,
+        "identity_ms": 26.7,
+        "decision_ms": 0.0
+      }
+    },
+    {
+      "timestamp": 1794643249.831584,
+      "scenario": "genuine_live",
+      "decision": "ALLOW",
+      "latency_ms": 370.1,
+      "reason_code": "ACCESS_GRANTED",
+      "confidence": 0.6398,
+      "p_live": 0.9754,
+      "id_score": 0.6398,
+      "identity_match": true,
+      "matched_user": "Faizan",
+      "moire_detected": false,
+      "timings": {
+        "capture_ms": 1.8,
+        "detect_pad_ms": 345.5,
+        "pad_agg_ms": 0.8,
+        "identity_ms": 21.8,
+        "decision_ms": 0.0
+      }
+    },
+    {
+      "timestamp": 1794643253.36381,
+      "scenario": "genuine_live",
+      "decision": "ALLOW",
+      "latency_ms": 404.4,
+      "reason_code": "ACCESS_GRANTED",
+      "confidence": 0.6868,
+      "p_live": 0.9747,
+      "id_score": 0.6868,
+      "identity_match": true,
+      "matched_user": "Faizan",
+      "moire_detected": false,
+      "timings": {
+        "capture_ms": 2.2,
+        "detect_pad_ms": 379.5,
+        "pad_agg_ms": 0.8,
+        "identity_ms": 21.8,
+        "decision_ms": 0.0
+      }
+    },
+    {
+      "timestamp": 1794643256.89701,
+      "scenario": "genuine_live",
+      "decision": "STEP_UP_VERIFICATION",
+      "latency_ms": 429.6,
+      "reason_code": "IMAGE_BLURRY",
+      "confidence": 0.4,
+      "p_live": 0.975,
+      "id_score": 0.6783,
+      "identity_match": true,
+      "matched_user": "Faizan",
+      "moire_detected": false,
+      "timings": {
+        "capture_ms": 5.3,
+        "detect_pad_ms": 393.6,
+        "pad_agg_ms": 0.7,
+        "identity_ms": 29.7,
+        "decision_ms": 0.0
+      }
+    },
+    {
+      "timestamp": 1794643260.310727,
+      "scenario": "genuine_live",
+      "decision": "STEP_UP_VERIFICATION",
+      "latency_ms": 349.9,
+      "reason_code": "IMAGE_BLURRY",
+      "confidence": 0.4,
+      "p_live": 0.9065,
+      "id_score": 0.3087,
+      "identity_match": false,
+      "matched_user": null,
+      "moire_detected": false,
+      "timings": {
+        "capture_ms": 2.3,
+        "detect_pad_ms": 324.6,
+        "pad_agg_ms": 0.9,
+        "identity_ms": 22.0,
+        "decision_ms": 0.0
+      }
+    },
+    {
+      "timestamp": 1794643263.9003036,
+      "scenario": "genuine_live",
+      "decision": "STEP_UP_VERIFICATION",
+      "latency_ms": 427.1,
+      "reason_code": "IMAGE_BLURRY",
+      "confidence": 0.4,
+      "p_live": 0.9751,
+      "id_score": 0.3528,
+      "identity_match": false,
+      "matched_user": "Faizan",
+      "moire_detected": false,
+      "timings": {
+        "capture_ms": 4.2,
+        "detect_pad_ms": 390.9,
+        "pad_agg_ms": 1.8,
+        "identity_ms": 29.9,
+        "decision_ms": 0.0
+      }
+    },
+    {
+      "timestamp": 1794643526.6594682,
+      "scenario": "genuine_live",
+      "decision": "ALLOW",
+      "latency_ms": 531.4,
+      "reason_code": "ACCESS_GRANTED",
+      "confidence": 0.6912,
+      "p_live": 0.9753,
+      "id_score": 0.6912,
+      "identity_match": true,
+      "matched_user": "Faizan",
+      "moire_detected": false,
+      "timings": {
+        "capture_ms": 2.2,
+        "detect_pad_ms": 499.1,
+        "pad_agg_ms": 0.8,
+        "identity_ms": 29.2,
+        "decision_ms": 0.0
+      }
+    },
+    {
+      "timestamp": 1794643537.021045,
+      "scenario": "genuine_live",
+      "decision": "STEP_UP_VERIFICATION",
+      "latency_ms": 336.8,
+      "reason_code": "IMAGE_BLURRY",
+      "confidence": 0.4,
+      "p_live": 0.905,
+      "id_score": 0.1978,
+      "identity_match": false,
+      "matched_user": null,
+      "moire_detected": false,
+      "timings": {
+        "capture_ms": 2.1,
+        "detect_pad_ms": 312.2,
+        "pad_agg_ms": 0.6,
+        "identity_ms": 21.8,
+        "decision_ms": 0.0
+      }
+    },
+    {
+      "timestamp": 1794643587.0665097,
+      "scenario": "genuine_live",
+      "decision": "ALLOW",
+      "latency_ms": 379.8,
+      "reason_code": "ACCESS_GRANTED",
+      "confidence": 0.6969,
+      "p_live": 0.9753,
+      "id_score": 0.6969,
+      "identity_match": true,
+      "matched_user": "Faizan",
+      "moire_detected": false,
+      "timings": {
+        "capture_ms": 2.4,
+        "detect_pad_ms": 355.2,
+        "pad_agg_ms": 0.6,
+        "identity_ms": 21.4,
+        "decision_ms": 0.0
+      }
+    },
+    {
+      "timestamp": 1794643746.9051037,
+      "scenario": "genuine_live",
+      "decision": "ALLOW",
+      "latency_ms": 488.2,
+      "reason_code": "ACCESS_GRANTED",
+      "confidence": 0.7475,
+      "p_live": 0.9756,
+      "id_score": 0.7475,
+      "identity_match": true,
+      "matched_user": "Faizan",
+      "moire_detected": false,
+      "timings": {
+        "capture_ms": 2.9,
+        "detect_pad_ms": 387.9,
+        "pad_agg_ms": 32.9,
+        "identity_ms": 64.3,
+        "decision_ms": 0.0
+      }
+    },
+    {
+      "timestamp": 1794643766.1289766,
+      "scenario": "genuine_live",
+      "decision": "ALLOW",
+      "latency_ms": 397.9,
+      "reason_code": "ACCESS_GRANTED",
+      "confidence": 0.6674,
+      "p_live": 0.9758,
+      "id_score": 0.6674,
+      "identity_match": true,
+      "matched_user": "Faizan",
+      "moire_detected": false,
+      "timings": {
+        "capture_ms": 3.9,
+        "detect_pad_ms": 367.4,
+        "pad_agg_ms": 0.7,
+        "identity_ms": 25.7,
+        "decision_ms": 0.0
+      }
+    },
+    {
+      "timestamp": 1794643789.3980563,
+      "scenario": "genuine_live",
+      "decision": "ALLOW",
+      "latency_ms": 415.4,
+      "reason_code": "ACCESS_GRANTED",
+      "confidence": 0.6278,
+      "p_live": 0.9759,
+      "id_score": 0.6278,
+      "identity_match": true,
+      "matched_user": "Faizan",
+      "moire_detected": false,
+      "timings": {
+        "capture_ms": 3.1,
+        "detect_pad_ms": 382.1,
+        "pad_agg_ms": 2.1,
+        "identity_ms": 27.9,
+        "decision_ms": 0.0
+      }
+    },
+    {
+      "timestamp": 1794643792.2254517,
+      "scenario": "genuine_live",
+      "decision": "ALLOW",
+      "latency_ms": 402.5,
+      "reason_code": "ACCESS_GRANTED",
+      "confidence": 0.5719,
+      "p_live": 0.9759,
+      "id_score": 0.5719,
+      "identity_match": true,
+      "matched_user": "Faizan",
+      "moire_detected": false,
+      "timings": {
+        "capture_ms": 2.5,
+        "detect_pad_ms": 370.2,
+        "pad_agg_ms": 1.1,
+        "identity_ms": 28.5,
+        "decision_ms": 0.0
+      }
     }
   ]
 }

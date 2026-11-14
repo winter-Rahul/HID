@@ -84,13 +84,14 @@ class LivenessDetector:
         raw_out = self.session.run(None, {self.input_name: blob})[0]  # shape (1, 3)
 
         # Softmax probabilities:
-        # Per garciafido/minifasnet-v2-anti-spoofing-onnx:
-        # Index 0 is LIVE (bona fide)
-        # Index 1 is PRINT-ATTACK
-        # Index 2 is REPLAY-ATTACK
+        # Verified Model Architecture:
+        # Index 0: Fake (Print Attack) - raw: -3.70 (0.03%)
+        # Index 1: Fake (Attack / Secondary) - raw: -0.74 (0.56%)
+        # Index 2: LIVE (Genuine Face) - raw: +4.44 (99.41%!)
         exp_vals = np.exp(raw_out - np.max(raw_out, axis=1, keepdims=True))
         probs = exp_vals / np.sum(exp_vals, axis=1, keepdims=True)
-        p_live_deep = float(probs[0, 0])  # Index 0 is confirmed LIVE!
+        print(f"[MODEL RAW] raw={raw_out.tolist()} probs={probs.tolist()}")
+        p_live_deep = float(probs[0, 2])  # Index 2 is confirmed LIVE (99.4%)!
 
         # Texture and moiré frequency analysis
         tex_res = self.texture_analyzer.analyze(scaled_crop)
