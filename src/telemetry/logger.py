@@ -46,7 +46,7 @@ class TelemetryLogger:
         sc["presentations"] += 1
         if decision == "ALLOW":
             sc["allow"] += 1
-        elif decision == "REQUEST_VERIFICATION":
+        elif decision in ("REQUEST_VERIFICATION", "STEP_UP_VERIFICATION"):
             sc["request"] += 1
         elif decision == "DENY":
             sc["deny"] += 1
@@ -60,8 +60,18 @@ class TelemetryLogger:
             "latency_ms": round(latency_ms, 1),
             "reason_code": metadata.get("reason_code", ""),
             "confidence": metadata.get("confidence", 0.0),
-            "p_live": metadata.get("p_live", 0.0),
-            "id_score": metadata.get("id_score", 0.0),
+            "p_live": metadata.get(
+                "liveness_score",
+                metadata.get("p_live")
+            ),
+            "id_score": metadata.get(
+                "identity_score",
+                metadata.get("id_score")
+            ),
+            "identity_match": metadata.get("identity_match"),
+            "matched_user": metadata.get("matched_user"),
+            "moire_detected": metadata.get("moire_detected"),
+            "timings": metadata.get("timings", {}),
         }
         self.history.append(record)
         self.save()

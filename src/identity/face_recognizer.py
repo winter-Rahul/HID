@@ -12,6 +12,8 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 
 class FaceRecognizer:
+    _lock = threading.Lock()
+
     def __init__(
         self,
         model_path: str = "models/face_recognition_sface_2021dec.onnx",
@@ -25,7 +27,6 @@ class FaceRecognizer:
         self.cosine_threshold_high = cosine_threshold_high
         self.cosine_threshold_low = cosine_threshold_low
         self.margin_min = margin_min
-        self.lock = threading.Lock()
 
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Recognition model not found at {model_path}")
@@ -56,7 +57,7 @@ class FaceRecognizer:
         """
         Aligns the face and extracts a 128-D normalized embedding. Thread-safe.
         """
-        with self.lock:
+        with self._lock:
             aligned = self.recognizer.alignCrop(frame, raw_face)
             feature = self.recognizer.feature(aligned)
         # Normalize

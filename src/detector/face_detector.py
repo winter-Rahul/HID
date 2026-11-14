@@ -16,6 +16,8 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 
 class FaceDetector:
+    _lock = threading.Lock()
+
     def __init__(
         self,
         model_path: str = "models/face_detection_yunet_2023mar.onnx",
@@ -29,7 +31,6 @@ class FaceDetector:
         self.score_threshold = score_threshold
         self.nms_threshold = nms_threshold
         self.top_k = top_k
-        self.lock = threading.Lock()
 
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Detector model not found at {model_path}")
@@ -51,7 +52,7 @@ class FaceDetector:
             return None
 
         h, w = frame.shape[:2]
-        with self.lock:
+        with self._lock:
             if (w, h) != self.input_size:
                 self.input_size = (w, h)
                 self.detector.setInputSize((w, h))

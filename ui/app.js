@@ -5,6 +5,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnScan = document.getElementById('btnScan');
   const chkAutoScan = document.getElementById('chkAutoScan');
   const scenarioSelect = document.getElementById('scenarioSelect');
+  const cameraStream = document.getElementById('cameraStream');
+
+  // Auto-reconnect camera stream if ever interrupted
+  cameraStream.onerror = () => {
+    console.warn("Camera stream interrupted. Auto-reconnecting in 500ms...");
+    setTimeout(() => {
+      cameraStream.src = `/api/stream?t=${Date.now()}`;
+    }, 500);
+  };
 
   const chkOnlineToggle = document.getElementById('chkOnlineToggle');
   const txtOnlineStatus = document.getElementById('txtOnlineStatus');

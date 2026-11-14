@@ -1,10 +1,10 @@
 {
   "scenarios": {
     "genuine_live": {
-      "presentations": 21,
+      "presentations": 39,
       "allow": 0,
       "request": 0,
-      "deny": 18,
+      "deny": 34,
       "latencies_ms": [
         362.8,
         436.6,
@@ -26,7 +26,25 @@
         427.9,
         405.6,
         451.3,
-        460.7
+        460.7,
+        339.2,
+        389.0,
+        439.5,
+        461.5,
+        500.9,
+        579.6,
+        475.2,
+        805.6,
+        814.7,
+        485.2,
+        638.7,
+        444.0,
+        571.2,
+        517.3,
+        491.6,
+        454.8,
+        489.7,
+        365.1
       ]
     },
     "printed_photo": {
@@ -296,6 +314,186 @@
       "latency_ms": 460.7,
       "reason_code": "SPOOF_DETECTED",
       "confidence": 0.8154,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794639625.2017365,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 339.2,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8158,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794640262.6678724,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 389.0,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8157,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794640264.930742,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 439.5,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8158,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794640265.9265714,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 461.5,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8157,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794640267.146079,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 500.9,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8157,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794640268.0929756,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 579.6,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8155,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794640269.0223296,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 475.2,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8156,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794640269.9720237,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 805.6,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8155,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794640270.9094276,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 814.7,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8156,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794640272.6941323,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 485.2,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8159,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794640371.261311,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 638.7,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8155,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794640374.563374,
+      "scenario": "genuine_live",
+      "decision": "STEP_UP_VERIFICATION",
+      "latency_ms": 444.0,
+      "reason_code": "IMAGE_BLURRY",
+      "confidence": 0.4,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794640378.2018669,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 571.2,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8156,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794640381.6485574,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 517.3,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8157,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794640385.1220143,
+      "scenario": "genuine_live",
+      "decision": "STEP_UP_VERIFICATION",
+      "latency_ms": 491.6,
+      "reason_code": "IMAGE_BLURRY",
+      "confidence": 0.4,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794640388.5870337,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 454.8,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8156,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794640392.1218767,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 489.7,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8156,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794640395.4967139,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 365.1,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8855,
       "p_live": 0.0,
       "id_score": 0.0
     }

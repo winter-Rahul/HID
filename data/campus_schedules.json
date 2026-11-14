@@ -76,10 +76,12 @@
       "Tue",
       "Wed",
       "Thu",
-      "Fri"
+      "Fri",
+      "Sat",
+      "Sun"
     ],
-    "start_hour": 8,
-    "end_hour": 18,
+    "start_hour": 0,
+    "end_hour": 24,
     "allowed_zones": [
       "Main Gate",
       "Offices"
@@ -94,10 +96,12 @@
       "Tue",
       "Wed",
       "Thu",
-      "Fri"
+      "Fri",
+      "Sat",
+      "Sun"
     ],
-    "start_hour": 8,
-    "end_hour": 18,
+    "start_hour": 0,
+    "end_hour": 24,
     "allowed_zones": [
       "Main Gate",
       "Offices"
@@ -112,10 +116,12 @@
       "Tue",
       "Wed",
       "Thu",
-      "Fri"
+      "Fri",
+      "Sat",
+      "Sun"
     ],
-    "start_hour": 8,
-    "end_hour": 18,
+    "start_hour": 0,
+    "end_hour": 24,
     "allowed_zones": [
       "Main Gate",
       "Offices"

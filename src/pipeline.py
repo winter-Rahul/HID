@@ -105,6 +105,14 @@ class KioskPipeline:
 
             pad_res = self.pad.predict_frame(frame, det["bbox"])
             pad_results.append(pad_res)
+            print(
+                "[PAD DEBUG]",
+                f"deep={pad_res['p_live_deep']:.4f}",
+                f"texture={pad_res['p_live_texture']:.4f}",
+                f"combined={pad_res['p_live']:.4f}",
+                f"moire={pad_res['moire_detected']}",
+                f"glare={pad_res['glare_detected']}",
+            )
 
         timing_breakdown["detect_pad_ms"] = round((time.monotonic() - t0) * 1000, 1)
 
@@ -127,6 +135,14 @@ class KioskPipeline:
         # 3. Burst temporal aggregation
         t0 = time.monotonic()
         pad_agg = self.pad.aggregate_burst(pad_results)
+        print(
+            "[PAD AGGREGATED]",
+            f"live={pad_agg['p_live']:.4f}",
+            f"deep={pad_agg['p_live_deep']:.4f}",
+            f"uncertainty={pad_agg['uncertainty']:.4f}",
+            f"attack={pad_agg['strong_attack_cue']}",
+            f"reason={pad_agg['attack_reason']}",
+        )
         timing_breakdown["pad_agg_ms"] = round((time.monotonic() - t0) * 1000, 1)
 
         # 4. Identity matching (on best quality aligned frame)
