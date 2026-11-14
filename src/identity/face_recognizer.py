@@ -125,7 +125,11 @@ class FaceRecognizer:
 
         return {
             "matched": matched,
-            "name": top_name if top_score >= self.cosine_threshold_low else None,
+            # Only expose a person's name as the recognized identity when the
+            # full acceptance threshold (including margin) passes. Keep the
+            # low-threshold candidate separate for administrative diagnostics.
+            "name": top_name if matched else None,
+            "candidate_name": top_name if top_score >= self.cosine_threshold_low else None,
             "score": round(top_score, 4),
             "margin": round(margin, 4),
             "all_scores": [(n, round(s, 4)) for n, s in scores[:3]],
