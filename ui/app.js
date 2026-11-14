@@ -201,21 +201,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
     enrollStatus.textContent = "Scanning face from camera...";
     enrollStatus.style.color = "#38bdf8";
+    btnSubmitEnroll.disabled = true;
 
-    const formData = new FormData();
-    formData.append('name', name);
+    try {
+      const formData = new FormData();
+      formData.append('name', name);
 
-    const resp = await fetch('/api/enroll', { method: 'POST', body: formData });
-    const data = await resp.json();
+      const resp = await fetch('/api/enroll', { method: 'POST', body: formData });
+      if (!resp.ok) {
+        throw new Error(`Server returned HTTP ${resp.status}`);
+      }
+      const data = await resp.json();
 
-    if (data.success) {
-      enrollStatus.textContent = `✓ ${data.message}`;
-      enrollStatus.style.color = "#4ade80";
-      txtEnrollName.value = '';
-      loadUsers();
-    } else {
-      enrollStatus.textContent = `✗ ${data.message}`;
+      if (data.success) {
+        enrollStatus.textContent = `✓ ${data.message}`;
+        enrollStatus.style.color = "#4ade80";
+        txtEnrollName.value = '';
+        loadUsers();
+      } else {
+        enrollStatus.textContent = `✗ ${data.message}`;
+        enrollStatus.style.color = "#f87171";
+      }
+    } catch (err) {
+      console.error(err);
+      enrollStatus.textContent = `✗ Enrollment failed: ${err.message}`;
       enrollStatus.style.color = "#f87171";
+    } finally {
+      btnSubmitEnroll.disabled = false;
     }
   });
 

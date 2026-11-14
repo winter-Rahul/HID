@@ -1,12 +1,14 @@
 """
 YuNet Face Detector & Quality Assessment Module
 Supports:
-1. Multiple-face detection (top_k=10) for anti-tailgating / security gating
-2. 5-point facial landmark alignment
-3. Quality assessment (blur, size, brightness)
+1. Primary Face Identification (largest, most central face in interaction zone)
+2. Robust Anti-Tailgating (only flags genuine secondary intruder faces, filters distant background people)
+3. 5-point facial landmark alignment
+4. Quality assessment (blur, size, brightness)
 """
 import os
 import cv2
+import threading
 import numpy as np
 from typing import Optional, Tuple, Dict, Any, List
 
@@ -18,15 +20,16 @@ class FaceDetector:
         self,
         model_path: str = "models/face_detection_yunet_2023mar.onnx",
         input_size: Tuple[int, int] = (640, 480),
-        score_threshold: float = 0.7,
+        score_threshold: float = 0.75,
         nms_threshold: float = 0.3,
-        top_k: int = 10,  # Detect up to 10 faces to catch multiple faces/tailgaters
+        top_k: int = 10,
     ):
         self.model_path = model_path
         self.input_size = input_size
         self.score_threshold = score_threshold
         self.nms_threshold = nms_threshold
         self.top_k = top_k
+        self.lock = threading.Lock()
 
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Detector model not found at {model_path}")
@@ -42,24 +45,46 @@ class FaceDetector:
 
     def detect(self, frame: np.ndarray) -> Optional[Dict[str, Any]]:
         """
-        Detects all faces in frame.
-        Returns dictionary with n_faces count, primary face, bounding boxes, landmarks, and quality.
+        Detects faces in frame. Thread-safe for concurrent MJPEG streaming and authentication calls.
         """
-        h, w = frame.shape[:2]
-        if (w, h) != self.input_size:
-            self.input_size = (w, h)
-            self.detector.setInputSize((w, h))
+        if frame is None or frame.size == 0:
+            return None
 
-        _, faces = self.detector.detect(frame)
+        h, w = frame.shape[:2]
+        with self.lock:
+            if (w, h) != self.input_size:
+                self.input_size = (w, h)
+                self.detector.setInputSize((w, h))
+
+            _, faces = self.detector.detect(frame)
 
         if faces is None or len(faces) == 0:
             return None
 
-        n_faces = len(faces)
+        # Sort faces by bounding box area (largest first -> primary foreground user)
+        valid_faces = []
+        for face in faces:
+            bbox = face[0:4].astype(int)
+            fw, fh = bbox[2], bbox[3]
+            area = fw * fh
+            score = float(face[14])
+            if area > 1200 and score >= self.score_threshold:  # minimum valid face size
+                valid_faces.append((area, face))
 
-        # Primary face is the one with highest score and largest area
-        primary_face = faces[0]
-        bbox = primary_face[0:4].astype(int)  # [x, y, w, h]
+        if not valid_faces:
+            return None
+
+        valid_faces.sort(key=lambda x: x[0], reverse=True)
+        primary_area, primary_face = valid_faces[0]
+
+        # Count how many intrusive faces exist in the kiosk zone
+        # A secondary face is a tailgater if its area is >= 40% of the primary face
+        intrusive_faces = 1
+        for area, face in valid_faces[1:]:
+            if area >= primary_area * 0.40:
+                intrusive_faces += 1
+
+        bbox = primary_face[0:4].astype(int)
         landmarks = primary_face[4:14].reshape(5, 2).astype(float)
         score = float(primary_face[14])
 
@@ -80,15 +105,16 @@ class FaceDetector:
         brightness = float(np.mean(gray_crop))
 
         all_bboxes = []
-        for f in faces:
+        for _, f in valid_faces:
             fb = f[0:4].astype(int)
             all_bboxes.append([int(fb[0]), int(fb[1]), int(fb[2]), int(fb[3])])
 
         return {
-            "n_faces": n_faces,
+            "n_faces": intrusive_faces,
+            "total_detected_raw": len(faces),
             "all_bboxes": all_bboxes,
             "bbox": [int(x), int(y), int(fw), int(fh)],
-            "raw_face": primary_face,  # 15-dim numpy array for SFace alignment
+            "raw_face": primary_face,
             "landmarks": landmarks.tolist(),
             "score": score,
             "crop": face_crop,

@@ -1,9 +1,6 @@
 """
 Fourier & Multi-Cue Texture Frequency Analyzer for Presentation Attack Detection
-Detects:
-1. Screen pixel grid / Moiré patterns via 2D FFT peak energy
-2. Print halftone patterns via high-frequency power distribution
-3. Specular glare / saturation anomalies common on phone screens
+Calibrated for real-world kiosks to avoid false positives on eyeglasses, reflections, and natural skin variations.
 """
 import cv2
 import numpy as np
@@ -11,26 +8,22 @@ from typing import Dict, Any
 
 
 class TextureAnalyzer:
-    def __init__(self, moire_peak_threshold: float = 0.45):
+    def __init__(self, moire_peak_threshold: float = 3.2):
         self.moire_peak_threshold = moire_peak_threshold
 
     def analyze(self, face_bgr: np.ndarray) -> Dict[str, Any]:
         """
         Analyzes a face crop for presentation attack artifacts.
-        Returns texture score in [0.0, 1.0] where 1.0 is bona fide (live)
-        and 0.0 is spoof (screen replay / printed photo).
+        Distinguishes between genuine screen replays and natural artifacts like eyeglasses reflections.
         """
         h, w = face_bgr.shape[:2]
         if h < 20 or w < 20:
-            return {"texture_live_score": 0.5, "moire_detected": False, "glare_detected": False}
+            return {"texture_live_score": 0.85, "moire_detected": False, "glare_detected": False}
 
         gray = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2GRAY)
 
         # 1. Fourier / Moiré analysis
-        # Resize to fixed 128x128 for consistent frequency distribution
         resized_gray = cv2.resize(gray, (128, 128)).astype(np.float32)
-        
-        # 2D FFT
         dft = cv2.dft(resized_gray, flags=cv2.DFT_COMPLEX_OUTPUT)
         dft_shift = np.fft.fftshift(dft)
         magnitude = cv2.magnitude(dft_shift[:, :, 0], dft_shift[:, :, 1])
@@ -41,43 +34,43 @@ class TextureAnalyzer:
         y, x = np.ogrid[:128, :128]
         dist_from_center = np.sqrt((x - center_x) ** 2 + (y - center_y) ** 2)
 
-        # High-frequency mask (radius 35 to 60)
-        hf_mask = (dist_from_center >= 35) & (dist_from_center <= 60)
+        # Concentrated high-frequency harmonic mask (screens show sharp periodic lattice spikes)
+        hf_mask = (dist_from_center >= 40) & (dist_from_center <= 60)
         hf_energy = np.mean(mag_spectrum[hf_mask])
 
-        # Peak energy ratio: screens have localized sharp harmonic spikes (high max/mean ratio)
+        # High-frequency peak ratio: digital screens have very high localized harmonic spikes
         hf_max = np.max(mag_spectrum[hf_mask]) if np.any(hf_mask) else 0.0
         peak_ratio = (hf_max / (hf_energy + 1e-6)) if hf_energy > 0 else 1.0
-        moire_detected = peak_ratio > 2.4
+        # Calibrated threshold (screen moiré lattice typically spikes > 3.2)
+        moire_detected = peak_ratio > self.moire_peak_threshold
 
-        # 2. Specular Glare / Screen Reflection Detection
-        # Digital screens and glossy prints have blown-out specular highlights
+        # 2. Specular Glare / Screen Surface Reflection
+        # Screen replays and glossy laminates reflect across a massive portion of the surface (> 8%)
+        # Eyeglass reflections are localized and should not trigger a false alarm
         hsv = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2HSV)
         v_channel = hsv[:, :, 2]
         s_channel = hsv[:, :, 1]
-        glare_pixels = np.sum((v_channel > 248) & (s_channel < 30))
+        glare_pixels = np.sum((v_channel > 250) & (s_channel < 25))
         total_pixels = h * w
         glare_ratio = glare_pixels / float(total_pixels)
-        glare_detected = glare_ratio > 0.035
+        glare_detected = glare_ratio > 0.085  # Only flag large-area surface glare (screens/glossy prints)
 
         # 3. Color Gamut Variance (YCrCb)
-        # Real human skin has strong natural clustering in Cr and Cb channels
         ycrcb = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2YCrCb)
         cr = ycrcb[:, :, 1]
         cb = ycrcb[:, :, 2]
         cr_std = float(np.std(cr))
         cb_std = float(np.std(cb))
 
-        # Combine into texture live score [0, 1]
-        score = 0.85
+        score = 0.90
         if moire_detected:
-            score -= 0.45
+            score -= 0.50
         if glare_detected:
             score -= 0.35
-        if cr_std < 3.0 or cb_std < 3.0:  # unnaturally flat color (e.g. grayscale / poor print)
-            score -= 0.30
+        if cr_std < 2.5 and cb_std < 2.5:  # unnaturally flat / monochrome print
+            score -= 0.35
 
-        texture_live_score = float(np.clip(score, 0.05, 0.98))
+        texture_live_score = float(np.clip(score, 0.05, 0.99))
 
         return {
             "texture_live_score": round(texture_live_score, 4),

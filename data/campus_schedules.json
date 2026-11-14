@@ -85,5 +85,41 @@
       "Offices"
     ],
     "emergency_override": false
+  },
+  "Faizan": {
+    "role": "Employee",
+    "department": "Campus Staff",
+    "days": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri"
+    ],
+    "start_hour": 8,
+    "end_hour": 18,
+    "allowed_zones": [
+      "Main Gate",
+      "Offices"
+    ],
+    "emergency_override": false
+  },
+  "pavan": {
+    "role": "Employee",
+    "department": "Campus Staff",
+    "days": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri"
+    ],
+    "start_hour": 8,
+    "end_hour": 18,
+    "allowed_zones": [
+      "Main Gate",
+      "Offices"
+    ],
+    "emergency_override": false
   }
 }

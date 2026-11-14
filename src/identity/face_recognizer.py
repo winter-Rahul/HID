@@ -3,6 +3,7 @@ SFace Face Recognition & Enrollment Module
 """
 import os
 import json
+import threading
 import cv2
 import numpy as np
 from typing import Optional, List, Dict, Tuple, Any
@@ -24,6 +25,7 @@ class FaceRecognizer:
         self.cosine_threshold_high = cosine_threshold_high
         self.cosine_threshold_low = cosine_threshold_low
         self.margin_min = margin_min
+        self.lock = threading.Lock()
 
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Recognition model not found at {model_path}")
@@ -52,10 +54,11 @@ class FaceRecognizer:
 
     def extract_feature(self, frame: np.ndarray, raw_face: np.ndarray) -> np.ndarray:
         """
-        Aligns the face and extracts a 128-D normalized embedding.
+        Aligns the face and extracts a 128-D normalized embedding. Thread-safe.
         """
-        aligned = self.recognizer.alignCrop(frame, raw_face)
-        feature = self.recognizer.feature(aligned)
+        with self.lock:
+            aligned = self.recognizer.alignCrop(frame, raw_face)
+            feature = self.recognizer.feature(aligned)
         # Normalize
         norm = np.linalg.norm(feature)
         if norm > 0:

@@ -1,10 +1,10 @@
 {
   "scenarios": {
     "genuine_live": {
-      "presentations": 17,
+      "presentations": 21,
       "allow": 0,
       "request": 0,
-      "deny": 14,
+      "deny": 18,
       "latencies_ms": [
         362.8,
         436.6,
@@ -22,7 +22,11 @@
         423.5,
         334.4,
         349.6,
-        359.6
+        359.6,
+        427.9,
+        405.6,
+        451.3,
+        460.7
       ]
     },
     "printed_photo": {
@@ -252,6 +256,46 @@
       "latency_ms": 359.6,
       "reason_code": "SPOOF_DETECTED",
       "confidence": 0.8216,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794638710.229064,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 427.9,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8153,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794639250.146251,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 405.6,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8153,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794639322.0825443,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 451.3,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8151,
+      "p_live": 0.0,
+      "id_score": 0.0
+    },
+    {
+      "timestamp": 1794639352.4860518,
+      "scenario": "genuine_live",
+      "decision": "DENY",
+      "latency_ms": 460.7,
+      "reason_code": "SPOOF_DETECTED",
+      "confidence": 0.8154,
       "p_live": 0.0,
       "id_score": 0.0
     }

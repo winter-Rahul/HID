@@ -42,6 +42,9 @@ class CameraStream:
                 time.sleep(0.01)
                 continue
 
+            # Mirror frame horizontally so user sees natural selfie/kiosk perspective
+            frame = cv2.flip(frame, 1)
+
             ts = time.monotonic()
             with self.lock:
                 self.latest_frame = frame.copy()

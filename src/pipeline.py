@@ -50,9 +50,9 @@ class KioskPipeline:
             return {"success": False, "message": "Face image is too blurry. Hold still."}
 
         success = self.recognizer.enroll(name, frame, det["raw_face"])
-        # Register standard schedule
-        self.schedule_mgr.set_user_schedule(name, start_hour=8, end_hour=18, days=["Mon", "Tue", "Wed", "Thu", "Fri"])
-        return {"success": success, "name": name, "message": f"Successfully enrolled {name} with business hour schedule"}
+        # Register standard hackathon & employee schedule (Mon-Sun, 24h)
+        self.schedule_mgr.set_user_schedule(name, start_hour=0, end_hour=24, days=["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"])
+        return {"success": success, "name": name, "message": f"Successfully enrolled {name} with campus access"}
 
     def process_burst(self, scenario: str = "genuine_live", simulated_hour: Optional[int] = None) -> Dict[str, Any]:
         """
