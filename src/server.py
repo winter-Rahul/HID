@@ -211,7 +211,10 @@ def delete_user(name: str):
         if success:
             pipeline.schedule_mgr.remove_user_schedule(name)
             step_up.remove_pin(name)
-    return {"success": success}
+    return {
+        "success": success,
+        "message": f"Deleted {name}." if success else f"{name} is not in the active enrolled-user list.",
+    }
 
 
 @app.post("/api/users/{name}/pin", dependencies=[Depends(require_admin)])

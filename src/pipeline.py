@@ -112,7 +112,12 @@ class KioskPipeline:
             template = mean_embedding(enrollment_features)
         except ValueError:
             return {"success": False, "message": "Invalid enrollment features; please retry"}
-        if self.recognizer.match(feature).get("name") or self.recognizer.match(template).get("name"):
+        probe_match = self.recognizer.match(feature)
+        template_match = self.recognizer.match(template)
+        if any(
+            result.get("score", 0.0) >= self.recognizer.cosine_threshold_high
+            for result in (probe_match, template_match)
+        ):
             return {"success": False, "message": "Face may already be enrolled; verify identity before retrying"}
 
         success = self.recognizer.enroll_feature(name, template)
