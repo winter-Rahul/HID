@@ -83,7 +83,10 @@ class LivenessDetector:
         # Model forward pass
         raw_out = self.session.run(None, {self.input_name: blob})[0]  # shape (1, 3)
 
-        # Demo-requested class mapping. Validate against controlled presentations.
+        # Silent-Face's reference implementation uses unscaled BGR input and
+        # treats class 1 as real. The exporter's model card conflicts; see README.
+        if raw_out.shape != (1, 3) or not np.isfinite(raw_out).all():
+            raise ValueError("PAD model returned invalid logits")
         exp_vals = np.exp(raw_out - np.max(raw_out, axis=1, keepdims=True))
         probs = exp_vals / np.sum(exp_vals, axis=1, keepdims=True)
         p_live_deep = float(probs[0, 1])

@@ -18,6 +18,18 @@ from src.capture.camera import CameraStream
 from src.telemetry.logger import TelemetryLogger
 
 
+def mean_embedding(features):
+    """Average consistent face embeddings and normalize the resulting template."""
+    values = np.asarray(features, dtype=np.float32)
+    if values.ndim != 2 or len(values) < 3 or not np.isfinite(values).all():
+        raise ValueError("Invalid face embeddings")
+    mean = values.mean(axis=0)
+    norm = float(np.linalg.norm(mean))
+    if not np.isfinite(norm) or norm <= 1e-8:
+        raise ValueError("Invalid mean face embedding")
+    return mean / norm
+
+
 class KioskPipeline:
     def __init__(
         self,
@@ -38,9 +50,23 @@ class KioskPipeline:
 
         self.camera = camera if camera is not None else CameraStream(camera_index=config["kiosk"]["camera_index"], width=config["kiosk"]["frame_width"], height=config["kiosk"]["frame_height"])
         self.burst_size = config["capture"]["burst_size"]
+        self.model_status = "warming"
+        try:
+            frame = np.zeros((480, 640, 3), dtype=np.uint8)
+            self.detector.detect(frame)
+            bbox = [200, 120, 200, 220]
+            self.pad.predict_frame(frame, bbox)
+            face = np.array([200, 120, 200, 220, 250, 200, 350, 200, 300, 240, 260, 290, 340, 290, .99], dtype=np.float32)
+            feature = self.recognizer.extract_feature(frame, face)
+            if not np.isfinite(feature).all():
+                raise ValueError("Recognition model produced invalid output")
+            self.model_status = "ready"
+        except Exception as exc:
+            self.model_status = "error"
+            print(f"[KioskPipeline] Model warm-up failed: {exc}")
         print("[KioskPipeline] Pipeline ready with Context & Offline Fail-Safe.")
 
-    def enroll_user(self, name: str) -> Dict[str, Any]:
+    def enroll_user(self, name: str, start_hour: int = 0, end_hour: int = 24, days=None) -> Dict[str, Any]:
         """Captures a clean face from the webcam and enrolls the user."""
         if name in self.recognizer.list_users():
             return {"success": False, "message": "Name is already enrolled"}
@@ -51,6 +77,10 @@ class KioskPipeline:
             face = self.detector.detect(sample)
             if face is None or face.get("n_faces", 1) != 1:
                 return {"success": False, "message": "A single face must be visible throughout enrollment"}
+            if (face["laplacian_var"] < self.decision_engine.min_laplacian_var or
+                    not self.decision_engine.min_brightness <= face["brightness"] <= self.decision_engine.max_brightness or
+                    min(face["bbox"][2:4]) < self.decision_engine.min_face_size):
+                return {"success": False, "message": "Enrollment frame quality is insufficient; adjust lighting and hold still"}
             checks.append(self.pad.predict_frame(sample, face["bbox"]))
             enrollment_features.append(self.recognizer.extract_feature(sample, face["raw_face"]).flatten())
         if len(checks) < 3:
@@ -75,13 +105,17 @@ class KioskPipeline:
         feature = self.recognizer.extract_feature(frame, det["raw_face"])
         if any(float(np.dot(feature.flatten(), candidate)) < self.recognizer.cosine_threshold_high for candidate in enrollment_features):
             return {"success": False, "message": "Face changed during enrollment"}
-        if self.recognizer.match(feature).get("name"):
+        try:
+            template = mean_embedding(enrollment_features)
+        except ValueError:
+            return {"success": False, "message": "Invalid enrollment features; please retry"}
+        if self.recognizer.match(feature).get("name") or self.recognizer.match(template).get("name"):
             return {"success": False, "message": "Face may already be enrolled; verify identity before retrying"}
 
-        success = self.recognizer.enroll(name, frame, det["raw_face"])
+        success = self.recognizer.enroll_feature(name, template)
         # Register a default weekday business-hours schedule for new users.
         if success and name not in self.schedule_mgr.schedules:
-            self.schedule_mgr.set_user_schedule(name, start_hour=8, end_hour=18, days=["Mon", "Tue", "Wed", "Thu", "Fri"])
+            self.schedule_mgr.set_user_schedule(name, start_hour=start_hour, end_hour=end_hour, days=days or ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"])
         return {"success": success, "name": name, "message": f"Successfully enrolled {name} with campus access" if success else "Enrollment failed"}
 
     def process_burst(self, scenario: str = "genuine_live", simulated_hour: Optional[int] = None) -> Dict[str, Any]:
@@ -106,7 +140,7 @@ class KioskPipeline:
                     "decision": "DENY",
                     "reason_code": "NO_CAMERA_FRAME",
                     "message": "Camera stream unavailable",
-                    "liveness_score": 0.0,
+                    "liveness_score": None,
                     "identity_match": False,
                     "schedule_allowed": False,
                     "online_mode": online_mode,
@@ -151,7 +185,7 @@ class KioskPipeline:
             total_lat = round((time.monotonic() - t_start) * 1000, 1)
             ev = {"n_faces": 0, "error": False, "online_mode": online_mode}
             dec = self.decision_engine.decide(ev)
-            dec["liveness_score"] = 0.0
+            dec["liveness_score"] = None
             dec["identity_match"] = False
             dec["schedule_allowed"] = False
             dec["online_mode"] = online_mode
@@ -170,15 +204,24 @@ class KioskPipeline:
         # 4. Identity matching (on best quality aligned frame)
         t0 = time.monotonic()
         feat = self.recognizer.extract_feature(best_frame, best_face_det["raw_face"])
-        id_res = self.recognizer.match(feat)
         consistent = len(detected_frames) >= 3 and len(detected_frames) == len(burst)
+        features = []
+        if not np.isfinite(feat).all() or float(np.linalg.norm(feat)) <= 1e-8:
+            return {"decision": "STEP_UP_VERIFICATION", "reason_code": "INVALID_IDENTITY_FEATURE", "message": "Identity measurement unavailable; please retry.", "liveness_score": pad_agg["p_live"], "identity_score": None, "identity_match": False, "schedule_allowed": False, "online_mode": online_mode, "confidence": None, "latency_ms": round((time.monotonic() - t_start) * 1000, 1), "timings": timing_breakdown}
         if consistent:
             probe = feat.flatten()
             for frame, det in detected_frames:
                 candidate = self.recognizer.extract_feature(frame, det["raw_face"]).flatten()
-                if float(np.dot(probe, candidate)) < self.recognizer.cosine_threshold_high:
+                if not np.isfinite(candidate).all() or float(np.dot(probe, candidate)) < self.recognizer.cosine_threshold_high:
                     consistent = False
                     break
+                features.append(candidate)
+        if consistent:
+            try:
+                feat = mean_embedding(features)
+            except ValueError:
+                consistent = False
+        id_res = self.recognizer.match(feat)
         timing_breakdown["identity_ms"] = round((time.monotonic() - t0) * 1000, 1)
 
         # 5. Context schedule check
@@ -210,12 +253,13 @@ class KioskPipeline:
         t0 = time.monotonic()
         decision_result = self.decision_engine.decide(evidence)
         if decision_result["decision"] == "ALLOW" and not consistent:
-            decision_result = {"decision": "STEP_UP_VERIFICATION", "reason_code": "INCONSISTENT_BURST", "message": "Insufficient consistent face frames. Please retry.", "confidence": 0.0}
+            decision_result = {"decision": "STEP_UP_VERIFICATION", "reason_code": "INCONSISTENT_BURST", "message": "Insufficient consistent face frames. Please retry.", "confidence": None}
         timing_breakdown["decision_ms"] = round((time.monotonic() - t0) * 1000, 1)
 
         total_latency_ms = round((time.monotonic() - t_start) * 1000, 1)
         if total_latency_ms > 2000 and decision_result["decision"] == "ALLOW":
             decision_result = self.decision_engine.decide({"timed_out": True})
+            decision_result["confidence"] = None
 
         # Construct shared contract response
         contract_response = {

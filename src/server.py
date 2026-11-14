@@ -7,11 +7,13 @@ import cv2
 import time
 import secrets
 import threading
+import logging
 from fastapi import Depends, FastAPI, Form, Header, HTTPException
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from src.offline.mock_central import MockCentral
+from src.step_up import StepUp
 from typing import Optional
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -36,6 +38,7 @@ def mock_sync(request: MockSyncRequest, x_admin_token: Optional[str] = Header(No
 # Initialize global pipeline
 pipeline = KioskPipeline()
 pipeline_lock = threading.RLock()
+step_up = StepUp()
 
 
 def require_admin(x_admin_token: Optional[str] = Header(None)):
@@ -52,6 +55,7 @@ def generate_frames():
     Generates high-performance MJPEG stream.
     Bulletproof: Wrapped in error boundary so camera stream NEVER dies or goes blank.
     """
+    reported_error = False
     while True:
         try:
             frame = pipeline.camera.get_latest_frame()
@@ -87,10 +91,13 @@ def generate_frames():
                 b"--frame\r\n"
                 b"Content-Type: image/jpeg\r\n\r\n" + buffer.tobytes() + b"\r\n"
             )
+            reported_error = False
             time.sleep(0.03)
 
-        except Exception as e:
-            # Bulletproof: Never let the stream die
+        except Exception:
+            if not reported_error:
+                logging.getLogger(__name__).exception("Camera stream failed")
+                reported_error = True
             time.sleep(0.05)
             continue
 
@@ -115,21 +122,49 @@ def authenticate(req: AuthRequest, x_admin_token: Optional[str] = Header(None)):
     Triggers the full burst authentication pipeline (< 2s).
     Thread-safe and updates persistent tracking state.
     """
-    require_admin(x_admin_token)
     simulated = req.scenario in ("schedule_violation", "schedule_denied")
+    if req.scenario not in (None, "genuine_live", "printed_photo", "screen_replay", "video_replay", "paper_mask", "unknown_person", "schedule_violation", "schedule_denied"):
+        raise HTTPException(status_code=400, detail="Invalid scenario")
+    if simulated:
+        require_admin(x_admin_token)
+    if getattr(pipeline, "model_status", "ready") != "ready":
+        raise HTTPException(status_code=503, detail="Models are not ready")
     with pipeline_lock:
         result = pipeline.process_burst(scenario=req.scenario, simulated_hour=3) if simulated else pipeline.process_burst(scenario=req.scenario)
+        if (not simulated and result.get("decision") == "STEP_UP_VERIFICATION" and
+                result.get("reason_code") in ("OFFLINE_VERIFICATION_REQUIRED", "BORDERLINE_IDENTITY", "UNCERTAIN_LIVENESS") and
+                result.get("matched_user") and result.get("schedule_allowed")):
+            challenge = step_up.issue(result["matched_user"])
+            if challenge:
+                result["step_up_challenge"] = challenge
         pipeline.last_active_bbox = result.get("bbox") if result.get("decision") == "ALLOW" else None
         pipeline.last_matched_name = result.get("matched_user") if pipeline.last_active_bbox else None
         pipeline.last_overlay_time = time.monotonic()
     return result
 
 
+class StepUpRequest(BaseModel):
+    challenge: str
+    pin: str
+
+
+@app.post("/api/step-up")
+def verify_step_up(request: StepUpRequest):
+    with pipeline_lock:
+        name = step_up.verify(request.challenge, request.pin)
+        if not name or name not in pipeline.recognizer.list_users() or not pipeline.schedule_mgr.check_access(name).get("allowed", False):
+            return {"decision": "DENY", "reason_code": "STEP_UP_FAILED", "message": "Verification failed or expired."}
+        if not pipeline.offline_mgr.is_online():
+            pipeline.offline_mgr.queue_offline_decision("ALLOW", name, "STEP_UP_VERIFIED", 0)
+        return {"decision": "ALLOW", "reason_code": "STEP_UP_VERIFIED", "message": "Secondary credential verified.", "matched_user": name}
+
+
 @app.get("/health")
 def health():
     """Report local status without changing operational state."""
     status = pipeline.offline_mgr.get_queue_status()
-    status["status"] = "healthy"
+    status["model_status"] = getattr(pipeline, "model_status", "unknown")
+    status["status"] = "healthy" if status["model_status"] == "ready" else "not_ready"
     return status
 
 
@@ -142,12 +177,19 @@ def toggle_offline(enable_offline: bool = Form(...)):
 
 
 @app.post("/api/enroll", dependencies=[Depends(require_admin)])
-def enroll(name: str = Form(...)):
+def enroll(name: str = Form(...), start_hour: int = Form(0), end_hour: int = Form(24), days: str = Form("Mon,Tue,Wed,Thu,Fri,Sat,Sun"), pin: str = Form("")):
     """Enrolls current face in camera as an authorized user."""
     if not name or len(name.strip()) == 0:
         raise HTTPException(status_code=400, detail="Name cannot be empty")
+    selected_days = days.split(",")
+    if not 0 <= start_hour <= 23 or not 0 <= end_hour <= 24 or start_hour == end_hour or not selected_days or any(day not in ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun") for day in selected_days):
+        raise HTTPException(status_code=400, detail="Invalid access schedule")
+    if pin and not (pin.isascii() and pin.isdigit() and 6 <= len(pin) <= 12):
+        raise HTTPException(status_code=400, detail="PIN must contain 6 to 12 digits")
     with pipeline_lock:
-        res = pipeline.enroll_user(name.strip())
+        res = pipeline.enroll_user(name.strip(), start_hour, end_hour, selected_days)
+        if res.get("success") and pin:
+            step_up.set_pin(name.strip(), pin)
     return res
 
 
@@ -167,7 +209,19 @@ def delete_user(name: str):
         success = pipeline.recognizer.remove_user(name)
         if success:
             pipeline.schedule_mgr.remove_user_schedule(name)
+            step_up.remove_pin(name)
     return {"success": success}
+
+
+@app.post("/api/users/{name}/pin", dependencies=[Depends(require_admin)])
+def set_user_pin(name: str, pin: str = Form(...)):
+    if not (pin.isascii() and pin.isdigit() and 6 <= len(pin) <= 12):
+        raise HTTPException(status_code=400, detail="PIN must contain 6 to 12 digits")
+    with pipeline_lock:
+        if name not in pipeline.recognizer.list_users():
+            raise HTTPException(status_code=404, detail="User not found")
+        step_up.set_pin(name, pin)
+    return {"success": True}
 
 
 @app.get("/api/metrics", dependencies=[Depends(require_admin)])

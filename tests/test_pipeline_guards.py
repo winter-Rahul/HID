@@ -32,6 +32,16 @@ def test_identity_change_cannot_allow():
     assert make_pipeline([.95] * 3, features=vectors).process_burst()["reason_code"] == "INCONSISTENT_BURST"
 
 
+def test_consistent_probe_matches_normalized_mean():
+    vectors = [np.array([1., 0.]), np.array([.8, .6]), np.array([.8, .6])]
+    pipeline = make_pipeline([.95] * 3, features=vectors)
+    seen = []
+    pipeline.recognizer.match = lambda feat: (seen.append(feat.copy()) or {"name": "Alice", "matched": True, "score": .9, "margin": .9})
+    assert pipeline.process_burst()["decision"] == "ALLOW"
+    expected = np.mean(vectors, axis=0)
+    np.testing.assert_allclose(seen[0], expected / np.linalg.norm(expected), rtol=1e-6)
+
+
 def test_slow_spoof_stays_denied(monkeypatch):
     import src.pipeline as pipeline_module
     times = iter(range(100))

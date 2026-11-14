@@ -66,6 +66,11 @@ document.addEventListener('DOMContentLoaded', () => {
   let isScanning = false;
   let autoScanTimer = null;
   let adminToken = null;
+  let stepUpChallenge = null;
+
+  function showSyncStatus(status) {
+    document.getElementById('txtSyncStatus').textContent = `Mock audit: ${status.pending_sync_count ?? '?'} pending, ${status.mock_synced_count ?? '?'} synced`;
+  }
 
   async function managementFetch(url, options = {}) {
     if (!adminToken) adminToken = window.prompt('Enter the kiosk management token:');
@@ -93,7 +98,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const formData = new FormData();
     formData.append('enable_offline', (!isOnline).toString());
     try {
-      await managementFetch('/api/toggle_offline', { method: 'POST', body: formData });
+      const response = await managementFetch('/api/toggle_offline', { method: 'POST', body: formData });
+      showSyncStatus(await response.json());
     } catch (err) {
       e.target.checked = !isOnline;
       txtOnlineStatus.textContent = isOnline ? 'Offline' : 'Online';
@@ -123,10 +129,19 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scenario: scenario })
       };
-      const resp = await managementFetch('/api/authenticate', request);
+      const resp = scenario === 'schedule_violation' || scenario === 'schedule_denied'
+        ? await managementFetch('/api/authenticate', request)
+        : await fetch('/api/authenticate', request);
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const data = await resp.json();
       displayResult(data);
+      fetch('/health').then(r => r.ok ? r.json() : Promise.reject()).then(showSyncStatus).catch(() => {});
+      if (data.step_up_challenge) {
+        stepUpChallenge = data.step_up_challenge;
+        document.getElementById('stepUpPin').value = '';
+        document.getElementById('stepUpStatus').textContent = '';
+        document.getElementById('stepUpModal').classList.remove('hidden');
+      }
     } catch (err) {
       console.error(err);
       chkAutoScan.checked = false;
@@ -148,15 +163,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Format Decision Time
     const sec = (res.latency_ms / 1000).toFixed(2);
     metricTime.textContent = `${sec} s`;
-    metricConfidence.textContent = (res.confidence || 0.0).toFixed(2);
+    metricConfidence.textContent = Number.isFinite(res.liveness_score) ? res.liveness_score.toFixed(2) : '--';
     metricUser.textContent = res.matched_user || "--";
     outcomeReason.textContent = res.message || res.reason_code;
 
     // Stage updates
     const t = res.timings || {};
     stageCaptureVal.textContent = `✓ ${t.capture_ms || 0} ms`;
-    stagePADVal.textContent = `p_live: ${(res.liveness_score || 0).toFixed(2)}`;
-    stageIDVal.textContent = res.matched_user ? `✓ ${res.matched_user} (${(res.identity_score || 0).toFixed(2)})` : `No Match`;
+    stagePADVal.textContent = Number.isFinite(res.liveness_score) ? `Liveness score: ${res.liveness_score.toFixed(2)}` : 'Unavailable';
+    stageIDVal.textContent = Number.isFinite(res.identity_score) ? `Similarity: ${res.identity_score.toFixed(2)}${res.matched_user ? ` (${res.matched_user})` : ''}` : 'Unavailable';
     stageScheduleVal.textContent = res.schedule_allowed ? `✓ Authorized` : `✗ Denied (${res.schedule_details || 'Out of window'})`;
     stageDecisionVal.textContent = `✓ ${res.decision}`;
 
@@ -218,7 +233,24 @@ document.addEventListener('DOMContentLoaded', () => {
         button.className = 'btn btn-secondary btn-sm';
         button.textContent = 'Delete';
         button.addEventListener('click', () => window.removeUser(u));
-        li.append(info, button);
+        const pin = document.createElement('input');
+        pin.type = 'password';
+        pin.inputMode = 'numeric';
+        pin.autocomplete = 'new-password';
+        pin.placeholder = 'Set PIN (6–12 digits)';
+        const pinButton = document.createElement('button');
+        pinButton.className = 'btn btn-secondary btn-sm';
+        pinButton.textContent = 'Save PIN';
+        pinButton.addEventListener('click', async () => {
+          const form = new FormData();
+          form.append('pin', pin.value);
+          pin.value = '';
+          try {
+            await managementFetch(`/api/users/${encodeURIComponent(u)}/pin`, { method: 'POST', body: form });
+            alert('PIN saved.');
+          } catch (err) { alert(err.message); }
+        });
+        li.append(info, pin, pinButton, button);
         userList.appendChild(li);
       });
     } catch (e) {
@@ -248,6 +280,11 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const formData = new FormData();
       formData.append('name', name);
+      formData.append('pin', document.getElementById('txtEnrollPin').value);
+      const weekday = document.getElementById('enrollSchedule').value === 'weekday';
+      formData.append('start_hour', weekday ? '8' : '0');
+      formData.append('end_hour', weekday ? '18' : '24');
+      formData.append('days', weekday ? 'Mon,Tue,Wed,Thu,Fri' : 'Mon,Tue,Wed,Thu,Fri,Sat,Sun');
 
       const resp = await managementFetch('/api/enroll', { method: 'POST', body: formData });
       if (!resp.ok) {
@@ -259,6 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
         enrollStatus.textContent = `✓ ${data.message}`;
         enrollStatus.style.color = "#4ade80";
         txtEnrollName.value = '';
+        document.getElementById('txtEnrollPin').value = '';
         loadUsers();
       } else {
         enrollStatus.textContent = `✗ ${data.message}`;
@@ -351,14 +389,37 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   btnCloseJudge.addEventListener('click', () => judgeDrawer.classList.add('hidden'));
   btnRefreshMetrics.addEventListener('click', refreshMetrics);
+  document.getElementById('btnCancelStepUp').addEventListener('click', () => {
+    stepUpChallenge = null;
+    document.getElementById('stepUpModal').classList.add('hidden');
+  });
+  document.getElementById('btnVerifyStepUp').addEventListener('click', async () => {
+    const pin = document.getElementById('stepUpPin').value;
+    document.getElementById('stepUpPin').value = '';
+    const challenge = stepUpChallenge;
+    stepUpChallenge = null;
+    try {
+      const resp = await fetch('/api/step-up', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({challenge, pin}) });
+      if (!resp.ok) throw new Error('Verification unavailable');
+      const result = await resp.json();
+      document.getElementById('stepUpModal').classList.add('hidden');
+      outcomeCard.className = `outcome-card ${result.decision === 'ALLOW' ? 'state-allow' : 'state-deny'}`;
+      outcomeVerdict.textContent = result.decision;
+      outcomeReason.textContent = result.message;
+      outcomeSub.textContent = result.decision === 'ALLOW' ? 'Secondary credential verified.' : 'Please start a new scan.';
+      outcomeIcon.textContent = result.decision === 'ALLOW' ? '✅' : '⛔';
+    } catch (err) {
+      document.getElementById('stepUpStatus').textContent = 'Verification failed. Start a new scan.';
+    }
+  });
   fetch('/health').then(response => {
     if (!response.ok) throw new Error('Health check failed');
     return response.json();
   }).then(status => {
+    showSyncStatus(status);
     chkOnlineToggle.checked = status.online_mode;
     txtOnlineStatus.textContent = status.online_mode ? 'Online' : 'Offline';
     offlineAlertBanner.classList.toggle('hidden', status.online_mode);
   }).catch(console.error);
-  loadUsers();
 
 });

@@ -69,7 +69,15 @@ class FaceRecognizer:
     def enroll(self, name: str, frame: np.ndarray, raw_face: np.ndarray) -> bool:
         """Enrolls a new user with their extracted embedding."""
         feat = self.extract_feature(frame, raw_face)
-        self.enrolled_users[name] = feat
+        return self.enroll_feature(name, feat)
+
+    def enroll_feature(self, name: str, feat: np.ndarray) -> bool:
+        """Store a finite, normalized embedding without replacing an existing identity."""
+        feat = np.asarray(feat, dtype=np.float32)
+        norm = float(np.linalg.norm(feat))
+        if name in self.enrolled_users or not np.isfinite(feat).all() or not np.isfinite(norm) or norm <= 1e-8:
+            return False
+        self.enrolled_users[name] = feat / norm
         self._save_enrolled()
         return True
 

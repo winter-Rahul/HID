@@ -9,6 +9,8 @@ import os
 import json
 import time
 import uuid
+import hashlib
+import hmac
 from src.offline.mock_central import MockCentral
 from typing import Dict, Any, List
 
@@ -55,8 +57,21 @@ class OfflineFailSafe:
         return self.online_mode
 
     def hash_identity(self, name: str) -> str:
-        """Avoid retaining a reversible or guessable identity in the demo queue."""
-        return "REDACTED"
+        """Pseudonymize the identity using a locally held secret."""
+        key_file = os.path.join(os.path.dirname(os.path.abspath(self.queue_file)), ".audit_key")
+        os.makedirs(os.path.dirname(key_file), exist_ok=True)
+        try:
+            fd = os.open(key_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            pass
+        else:
+            with os.fdopen(fd, "wb") as f:
+                f.write(os.urandom(32))
+        with open(key_file, "rb") as f:
+            key = f.read()
+        if len(key) != 32:
+            raise ValueError("Invalid audit pseudonymization key")
+        return hmac.new(key, name.encode("utf-8"), hashlib.sha256).hexdigest()
 
     def queue_offline_decision(self, decision: str, name: str, reason_code: str, latency_ms: float) -> Dict[str, Any]:
         """
@@ -102,4 +117,5 @@ class OfflineFailSafe:
             "online_mode": self.online_mode,
             "pending_sync_count": pending,
             "total_queued": len(self.queue),
+            "mock_synced_count": self.receiver.count() if hasattr(self.receiver, "count") else None,
         }
