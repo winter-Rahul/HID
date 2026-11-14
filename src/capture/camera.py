@@ -56,12 +56,15 @@ class CameraStream:
 
     def get_latest_frame(self) -> Optional[np.ndarray]:
         with self.lock:
+            if not self.frame_buffer or time.monotonic() - self.frame_buffer[-1][0] > 1.0:
+                return None
             return self.latest_frame.copy() if self.latest_frame is not None else None
 
     def get_burst(self, n_frames: int = 8) -> List[Tuple[float, np.ndarray]]:
         """Returns the most recent n_frames with monotonic timestamps."""
         with self.lock:
-            return [(ts, f.copy()) for ts, f in self.frame_buffer[-n_frames:]]
+            now = time.monotonic()
+            return [(ts, f.copy()) for ts, f in self.frame_buffer[-n_frames:] if now - ts <= 1.0]
 
     def stop(self):
         self.running = False

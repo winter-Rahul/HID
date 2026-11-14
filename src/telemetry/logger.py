@@ -87,8 +87,8 @@ class TelemetryLogger:
                     "allow": 0,
                     "request": 0,
                     "deny": 0,
-                    "apcer": 0.0,
-                    "bpcer": 0.0,
+                    "apcer": None,
+                    "bpcer": None,
                     "p50_latency_ms": 0.0,
                     "p95_latency_ms": 0.0,
                 }
@@ -108,8 +108,11 @@ class TelemetryLogger:
                 "allow": sc["allow"],
                 "request": sc["request"],
                 "deny": sc["deny"],
-                "apcer": round(apcer * 100, 2),
-                "bpcer": round(bpcer * 100, 2),
+                # End-to-end decisions cannot establish PAD-only APCER/BPCER.
+                "apcer": None,
+                "bpcer": None,
+                "end_to_end_allow_rate": round(sc["allow"] / float(pres) * 100, 2),
+                "end_to_end_deny_rate": round(sc["deny"] / float(pres) * 100, 2),
                 "p50_latency_ms": round(p50, 1),
                 "p95_latency_ms": round(p95, 1),
             }

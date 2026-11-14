@@ -6,6 +6,7 @@ Guarantees:
 3. Offline Zero-Fail-Open: Under network severance, the system never fails open.
 4. Tri-State Outcomes: ALLOW / STEP_UP_VERIFICATION / DENY.
 """
+import math
 from typing import Dict, Any
 
 
@@ -34,6 +35,14 @@ class DecisionEngine:
         Returns tri-state decision, reason code, display confidence, and telemetry.
         """
         online_mode = evidence.get("online_mode", True)
+
+        for key in ("p_live", "uncertainty", "id_score"):
+            if key in evidence and (not isinstance(evidence[key], (int, float)) or not math.isfinite(evidence[key])):
+                return {
+                    "decision": "STEP_UP_VERIFICATION", "reason_code": "INVALID_EVIDENCE",
+                    "message": "Invalid measurement. Please try again.", "confidence": 0.0,
+                    "allow": False, "schedule_allowed": False,
+                }
 
         # Fail-safe check
         if evidence.get("error") or evidence.get("timed_out"):
@@ -155,8 +164,8 @@ class DecisionEngine:
 
         # 4. SURPRISE CHALLENGE 01: CONTEXT-AWARE SCHEDULE ACCESS CHECK
         # "Recognising a live person is no longer enough for automatic entry"
-        schedule_check = evidence.get("schedule_check", {"allowed": True, "reason": "Standard Access"})
-        schedule_allowed = schedule_check.get("allowed", True)
+        schedule_check = evidence.get("schedule_check") or {}
+        schedule_allowed = schedule_check.get("allowed") is True
 
         if not schedule_allowed:
             return {

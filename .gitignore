@@ -1,0 +1,36 @@
+# Python bytecode and tooling caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+
+# Local Python environments and build artifacts
+.venv/
+venv/
+env/
+ENV/
+build/
+dist/
+*.egg-info/
+
+# Local settings and editor files
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
+*.log
+Thumbs.db
+.DS_Store
+
+# Local data and runtime state
+/data/Data/
+/data/offline_sync_queue.json
+*.sqlite
+*.sqlite3
+*.db

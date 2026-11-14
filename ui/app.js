@@ -179,15 +179,20 @@ document.addEventListener('DOMContentLoaded', () => {
       userList.innerHTML = '';
       data.users.forEach(u => {
         const sched = (data.schedules && data.schedules[u]) ? data.schedules[u] : null;
-        const windowStr = sched ? `${sched.start_hour}:00 - ${sched.end_hour}:00 (${sched.days.join(',')})` : '08:00 - 18:00 (Standard)';
+        const windowStr = sched ? `${sched.start_hour}:00 - ${sched.end_hour}:00 (${sched.days.join(',')})` : 'No authorized schedule';
         const li = document.createElement('li');
-        li.innerHTML = `
-          <div>
-            <b>👤 ${u}</b><br>
-            <small style="color:#94a3b8">Schedule: ${windowStr}</small>
-          </div>
-          <button class="btn btn-secondary btn-sm" onclick="removeUser('${u}')">Delete</button>
-        `;
+        const info = document.createElement('div');
+        const title = document.createElement('b');
+        title.textContent = `👤 ${u}`;
+        const schedule = document.createElement('small');
+        schedule.style.color = '#94a3b8';
+        schedule.textContent = `Schedule: ${windowStr}`;
+        info.append(title, document.createElement('br'), schedule);
+        const button = document.createElement('button');
+        button.className = 'btn btn-secondary btn-sm';
+        button.textContent = 'Delete';
+        button.addEventListener('click', () => window.removeUser(u));
+        li.append(info, button);
         userList.appendChild(li);
       });
     } catch (e) {
@@ -260,7 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       for (const [k, v] of Object.entries(data)) {
         const tr = document.createElement('tr');
-        const rateLabel = k === "genuine_live" ? `BPCER: ${v.bpcer}%` : `APCER: ${v.apcer}%`;
+        const rateLabel = k === "genuine_live" ? `DENY: ${v.end_to_end_deny_rate ?? 'N/A'}%` : `ALLOW: ${v.end_to_end_allow_rate ?? 'N/A'}%`;
         tr.innerHTML = `
           <td><b>${labels[k] || k}</b></td>
           <td>${v.presentations}</td>

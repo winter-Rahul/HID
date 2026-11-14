@@ -1,5 +1,13 @@
 # HID Hackathon 2026 — "Can You Spot a Spoof?"
 
+## Running the prototype
+
+Create a Python virtual environment, install dependencies with `python -m pip install -r requirements-dev.txt`, and run `python run_kiosk.py` from the project root. Run tests with `python -m pytest`.
+
+This is a research prototype, not an access-control product. Thresholds and model preprocessing require independent validation against genuine and attack presentations on the target hardware. The two-second target, attack detection rates, and reliability have not been established by automated tests. The online/offline switch is a manual demo control, and queued offline events are retained locally; no central-server synchronization is implemented. Enrollment is not protected by an administrator login, and biometric templates are stored locally in plaintext JSON. The existing `data/enrolled_users.json` is tracked by Git: review and remove any real biometric data from repository history before sharing it. Do not use this system to control real access or store real users' biometrics without addressing these gaps. The configuration YAML is currently illustrative; the pipeline uses hard-coded settings.
+
+The UI's end-to-end allow and deny rates are not PAD-only APCER or BPCER. Existing telemetry and the checked-in report may contain inconsistent or historical demo data and should not be presented as validated results. Record new consented, labelled trials under a documented protocol before reporting performance.
+
 > **Liveness Detection + Context-Aware Face Authentication Kiosk**
 > Status: 🟡 In Progress · Research complete · Building now
 

@@ -18,7 +18,7 @@ class TextureAnalyzer:
         """
         h, w = face_bgr.shape[:2]
         if h < 20 or w < 20:
-            return {"texture_live_score": 0.85, "moire_detected": False, "glare_detected": False}
+            return {"texture_live_score": 0.0, "moire_detected": False, "glare_detected": False, "peak_ratio": 0.0}
 
         gray = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2GRAY)
 
