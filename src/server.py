@@ -11,6 +11,7 @@ from fastapi import Depends, FastAPI, Form, Header, HTTPException
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from src.offline.mock_central import MockCentral
 from typing import Optional
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -18,6 +19,19 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 from src.pipeline import KioskPipeline
 
 app = FastAPI(title="HID Liveness & Context-Aware Kiosk API")
+
+
+class MockSyncRequest(BaseModel):
+    events: list[dict]
+
+
+@app.post("/api/mock-sync")
+def mock_sync(request: MockSyncRequest, x_admin_token: Optional[str] = Header(None)):
+    require_admin(x_admin_token)
+    try:
+        return {"acknowledged": MockCentral().accept(request.events)}
+    except (KeyError, TypeError):
+        raise HTTPException(status_code=400, detail="Each event requires a sync_id")
 
 # Initialize global pipeline
 pipeline = KioskPipeline()
@@ -49,7 +63,7 @@ def generate_frames():
 
             # If recent detection bbox exists, draw it smoothly
             bbox = getattr(pipeline, "last_active_bbox", None)
-            if bbox is not None:
+            if bbox is not None and time.monotonic() - getattr(pipeline, "last_overlay_time", 0) < 3:
                 x, y, w, h = bbox
                 color = (0, 255, 120) if pipeline.offline_mgr.is_online() else (0, 180, 255)
                 cv2.rectangle(disp_frame, (x, y), (x + w, y + h), color, 2)
@@ -96,16 +110,18 @@ class AuthRequest(BaseModel):
 
 
 @app.post("/api/authenticate")
-def authenticate(req: AuthRequest):
+def authenticate(req: AuthRequest, x_admin_token: Optional[str] = Header(None)):
     """
     Triggers the full burst authentication pipeline (< 2s).
     Thread-safe and updates persistent tracking state.
     """
+    require_admin(x_admin_token)
+    simulated = req.scenario in ("schedule_violation", "schedule_denied")
     with pipeline_lock:
-        result = pipeline.process_burst(scenario=req.scenario)
-    if "bbox" in result:
-        pipeline.last_active_bbox = result["bbox"]
-        pipeline.last_matched_name = result.get("matched_user") or "Verified Face"
+        result = pipeline.process_burst(scenario=req.scenario, simulated_hour=3) if simulated else pipeline.process_burst(scenario=req.scenario)
+        pipeline.last_active_bbox = result.get("bbox") if result.get("decision") == "ALLOW" else None
+        pipeline.last_matched_name = result.get("matched_user") if pipeline.last_active_bbox else None
+        pipeline.last_overlay_time = time.monotonic()
     return result
 
 
@@ -132,8 +148,6 @@ def enroll(name: str = Form(...)):
         raise HTTPException(status_code=400, detail="Name cannot be empty")
     with pipeline_lock:
         res = pipeline.enroll_user(name.strip())
-    if res.get("success"):
-        pipeline.last_matched_name = name.strip()
     return res
 
 
@@ -151,6 +165,8 @@ def delete_user(name: str):
     """Removes an enrolled user."""
     with pipeline_lock:
         success = pipeline.recognizer.remove_user(name)
+        if success:
+            pipeline.schedule_mgr.remove_user_schedule(name)
     return {"success": success}
 
 
@@ -167,7 +183,8 @@ def get_metrics():
 def reset_metrics():
     """Resets telemetry history."""
     with pipeline_lock:
-        pipeline.telemetry = pipeline.telemetry.__class__()
+        pipeline.telemetry.scenarios = {name: {"presentations": 0, "allow": 0, "request": 0, "deny": 0, "latencies_ms": []} for name in pipeline.telemetry.scenarios}
+        pipeline.telemetry.history = []
         pipeline.telemetry.save()
     return {"status": "reset"}
 

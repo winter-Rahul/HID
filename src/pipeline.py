@@ -5,6 +5,7 @@ Contract: { decision, reason_code, liveness_score, identity_match, schedule_allo
 """
 import time
 import numpy as np
+import yaml
 from typing import Dict, Any, Optional
 
 from src.detector.face_detector import FaceDetector
@@ -24,20 +25,39 @@ class KioskPipeline:
         config_path: str = "configs/pipeline.yaml",
     ):
         print("[KioskPipeline] Initializing models and engines...")
-        self.detector = FaceDetector(model_path="models/face_detection_yunet_2023mar.onnx")
-        self.recognizer = FaceRecognizer(model_path="models/face_recognition_sface_2021dec.onnx")
-        self.pad = LivenessDetector(model_path="models/minifasnet_v2.onnx")
-        self.decision_engine = DecisionEngine()
+        with open(config_path, encoding="utf-8") as f:
+            config = yaml.safe_load(f)
+        detector, identity, pad, quality = (config[k] for k in ("detector", "identity", "pad", "quality"))
+        self.detector = FaceDetector(model_path=detector["model_path"], score_threshold=detector["score_threshold"], nms_threshold=detector["nms_threshold"], top_k=detector["top_k"])
+        self.recognizer = FaceRecognizer(model_path=identity["model_path"], storage_file=config["storage"]["enrolled_faces_file"], cosine_threshold_high=identity["cosine_threshold_high"], cosine_threshold_low=identity["cosine_threshold_low"], margin_min=identity["margin_min"])
+        self.pad = LivenessDetector(model_path=pad["model_path"], t_spoof=pad["t_spoof"], t_live=pad["t_live"], u_max_variance=pad["u_max_variance"])
+        self.decision_engine = DecisionEngine(t_spoof=pad["t_spoof"], t_live=pad["t_live"], u_max_variance=pad["u_max_variance"], min_laplacian_var=quality["min_laplacian_var"], min_brightness=quality["min_brightness"], max_brightness=quality["max_brightness"], min_face_size=max(quality["min_face_width"], quality["min_face_height"]))
         self.schedule_mgr = ScheduleManager()
         self.offline_mgr = OfflineFailSafe()
         self.telemetry = TelemetryLogger()
 
-        self.camera = camera if camera is not None else CameraStream(camera_index=0)
-        self.burst_size = 8
+        self.camera = camera if camera is not None else CameraStream(camera_index=config["kiosk"]["camera_index"], width=config["kiosk"]["frame_width"], height=config["kiosk"]["frame_height"])
+        self.burst_size = config["capture"]["burst_size"]
         print("[KioskPipeline] Pipeline ready with Context & Offline Fail-Safe.")
 
     def enroll_user(self, name: str) -> Dict[str, Any]:
         """Captures a clean face from the webcam and enrolls the user."""
+        if name in self.recognizer.list_users():
+            return {"success": False, "message": "Name is already enrolled"}
+        burst = self.camera.get_burst(self.burst_size)
+        checks = []
+        enrollment_features = []
+        for _, sample in burst:
+            face = self.detector.detect(sample)
+            if face is None or face.get("n_faces", 1) != 1:
+                return {"success": False, "message": "A single face must be visible throughout enrollment"}
+            checks.append(self.pad.predict_frame(sample, face["bbox"]))
+            enrollment_features.append(self.recognizer.extract_feature(sample, face["raw_face"]).flatten())
+        if len(checks) < 3:
+            return {"success": False, "message": "Not enough frames for enrollment"}
+        live = self.pad.aggregate_burst(checks)
+        if live["strong_attack_cue"] or live["p_live"] < self.decision_engine.t_live or live["uncertainty"] > self.decision_engine.u_max_variance:
+            return {"success": False, "message": "Liveness could not be verified for enrollment"}
         frame = self.camera.get_latest_frame()
         if frame is None:
             return {"success": False, "message": "Failed to capture frame from camera"}
@@ -52,13 +72,19 @@ class KioskPipeline:
         if det["laplacian_var"] < 35.0:
             return {"success": False, "message": "Face image is too blurry. Hold still."}
 
+        feature = self.recognizer.extract_feature(frame, det["raw_face"])
+        if any(float(np.dot(feature.flatten(), candidate)) < self.recognizer.cosine_threshold_high for candidate in enrollment_features):
+            return {"success": False, "message": "Face changed during enrollment"}
+        if self.recognizer.match(feature).get("name"):
+            return {"success": False, "message": "Face may already be enrolled; verify identity before retrying"}
+
         success = self.recognizer.enroll(name, frame, det["raw_face"])
-        # Register standard hackathon & employee schedule (Mon-Sun, 24h)
-        if success:
-            self.schedule_mgr.set_user_schedule(name, start_hour=0, end_hour=24, days=["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"])
+        # Register a default weekday business-hours schedule for new users.
+        if success and name not in self.schedule_mgr.schedules:
+            self.schedule_mgr.set_user_schedule(name, start_hour=8, end_hour=18, days=["Mon", "Tue", "Wed", "Thu", "Fri"])
         return {"success": success, "name": name, "message": f"Successfully enrolled {name} with campus access" if success else "Enrollment failed"}
 
-    def process_burst(self, scenario: str = "genuine_live") -> Dict[str, Any]:
+    def process_burst(self, scenario: str = "genuine_live", simulated_hour: Optional[int] = None) -> Dict[str, Any]:
         """
         Executes full end-to-end authentication in <= 2.0s.
         Returns the exact shared response contract.
@@ -100,12 +126,14 @@ class KioskPipeline:
         best_quality = -1.0
         best_frame = None
         max_faces = 0
+        detected_frames = []
 
         for ts, frame in burst:
             det = self.detector.detect(frame)
             if det is None:
                 continue
             max_faces = max(max_faces, det.get("n_faces", 1))
+            detected_frames.append((frame, det))
 
             qual = det["laplacian_var"]
             if qual > best_quality:
@@ -115,14 +143,6 @@ class KioskPipeline:
 
             pad_res = self.pad.predict_frame(frame, det["bbox"])
             pad_results.append(pad_res)
-            print(
-                "[PAD DEBUG]",
-                f"deep={pad_res['p_live_deep']:.4f}",
-                f"texture={pad_res['p_live_texture']:.4f}",
-                f"combined={pad_res['p_live']:.4f}",
-                f"moire={pad_res['moire_detected']}",
-                f"glare={pad_res['glare_detected']}",
-            )
 
         timing_breakdown["detect_pad_ms"] = round((time.monotonic() - t0) * 1000, 1)
 
@@ -145,26 +165,26 @@ class KioskPipeline:
         # 3. Burst temporal aggregation
         t0 = time.monotonic()
         pad_agg = self.pad.aggregate_burst(pad_results)
-        print(
-            "[PAD AGGREGATED]",
-            f"live={pad_agg['p_live']:.4f}",
-            f"deep={pad_agg['p_live_deep']:.4f}",
-            f"uncertainty={pad_agg['uncertainty']:.4f}",
-            f"attack={pad_agg['strong_attack_cue']}",
-            f"reason={pad_agg['attack_reason']}",
-        )
         timing_breakdown["pad_agg_ms"] = round((time.monotonic() - t0) * 1000, 1)
 
         # 4. Identity matching (on best quality aligned frame)
         t0 = time.monotonic()
         feat = self.recognizer.extract_feature(best_frame, best_face_det["raw_face"])
         id_res = self.recognizer.match(feat)
+        consistent = len(detected_frames) >= 3 and len(detected_frames) == len(burst)
+        if consistent:
+            probe = feat.flatten()
+            for frame, det in detected_frames:
+                candidate = self.recognizer.extract_feature(frame, det["raw_face"]).flatten()
+                if float(np.dot(probe, candidate)) < self.recognizer.cosine_threshold_high:
+                    consistent = False
+                    break
         timing_breakdown["identity_ms"] = round((time.monotonic() - t0) * 1000, 1)
 
         # 5. Context schedule check
         sched_check = {"allowed": False, "reason": "No match to schedule"}
         if id_res["name"]:
-            sched_check = self.schedule_mgr.check_access(id_res["name"])
+            sched_check = self.schedule_mgr.check_access(id_res["name"], simulated_hour=simulated_hour)
 
         # 6. Evidence fusion
         n_faces = max_faces
@@ -189,10 +209,12 @@ class KioskPipeline:
         # 7. Tri-state decision
         t0 = time.monotonic()
         decision_result = self.decision_engine.decide(evidence)
+        if decision_result["decision"] == "ALLOW" and not consistent:
+            decision_result = {"decision": "STEP_UP_VERIFICATION", "reason_code": "INCONSISTENT_BURST", "message": "Insufficient consistent face frames. Please retry.", "confidence": 0.0}
         timing_breakdown["decision_ms"] = round((time.monotonic() - t0) * 1000, 1)
 
         total_latency_ms = round((time.monotonic() - t_start) * 1000, 1)
-        if total_latency_ms > 2000:
+        if total_latency_ms > 2000 and decision_result["decision"] == "ALLOW":
             decision_result = self.decision_engine.decide({"timed_out": True})
 
         # Construct shared contract response

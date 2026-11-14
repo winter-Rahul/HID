@@ -72,10 +72,10 @@ class LivenessDetector:
     def predict_frame(self, frame: np.ndarray, bbox: List[int]) -> Dict[str, Any]:
         """
         Runs PAD inference on a single frame.
-        Preprocessing: 80x80 BGR resized, normalized to [0.0, 1.0] via / 255.0.
+        Preprocessing: 80x80 BGR resized, float32 raw pixel values.
         """
         scaled_crop = self._get_scaled_crop(frame, bbox, scale=2.7)
-        resized = cv2.resize(scaled_crop, (80, 80)).astype(np.float32) / 255.0
+        resized = cv2.resize(scaled_crop, (80, 80)).astype(np.float32)
 
         # Transpose (H, W, C) -> (1, C, H, W)
         blob = np.transpose(resized, (2, 0, 1))[np.newaxis, ...]
@@ -83,18 +83,18 @@ class LivenessDetector:
         # Model forward pass
         raw_out = self.session.run(None, {self.input_name: blob})[0]  # shape (1, 3)
 
-        # Softmax probabilities:
-        # Verified Model Architecture:
-        # Index 0: Fake (Print Attack) - raw: -3.70 (0.03%)
-        # Index 1: Fake (Attack / Secondary) - raw: -0.74 (0.56%)
-        # Index 2: LIVE (Genuine Face) - raw: +4.44 (99.41%!)
+        # Silent-Face's reference implementation uses unscaled BGR input and
+        # treats class 1 as real. The exporter's model card conflicts; see README.
+        if raw_out.shape != (1, 3) or not np.isfinite(raw_out).all():
+            raise ValueError("PAD model returned invalid logits")
         exp_vals = np.exp(raw_out - np.max(raw_out, axis=1, keepdims=True))
         probs = exp_vals / np.sum(exp_vals, axis=1, keepdims=True)
-        print(f"[MODEL RAW] raw={raw_out.tolist()} probs={probs.tolist()}")
-        p_live_deep = float(probs[0, 2])  # Index 2 is confirmed LIVE (99.4%)!
+        p_live_deep = float(probs[0, 1])
 
         # Texture and moiré frequency analysis
-        tex_res = self.texture_analyzer.analyze(scaled_crop)
+        x, y, width, height = bbox
+        face_crop = frame[max(0, y):min(frame.shape[0], y + height), max(0, x):min(frame.shape[1], x + width)]
+        tex_res = self.texture_analyzer.analyze(face_crop)
         p_live_texture = tex_res["texture_live_score"]
 
         # Weighted score: Deep network (80%) + Texture (20%)

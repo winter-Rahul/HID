@@ -57,7 +57,7 @@
               <option value="screen_replay">📱 Screen Replay (Smartphone Photo)</option>
               <option value="video_replay">🎬 Video Replay (Screen / Tablet)</option>
               <option value="paper_mask">🎭 Paper Mask (Eye Cutout)</option>
-              <option value="schedule_violation">⏰ Schedule Violation (Valid Face, Outside Allowed Hours)</option>
+              <option value="schedule_violation">⏰ Schedule Violation (Admin demo: 03:00)</option>
               <option value="unknown_person">❓ Unknown / Unenrolled Live Person</option>
             </select>
           </div>
@@ -224,7 +224,7 @@
         <ul>
           <li><b>Hard Spoof Veto:</b> Liveness evaluated before identity. Spoofs are blocked unconditionally.</li>
           <li><b>Context-Aware Access Control:</b> Liveness alone does not grant access; campus schedule gates entry.</li>
-          <li><b>Offline Fail-Safe Mode:</b> If connectivity is severed, system never fails open. Offline audit decisions queued for auto-sync.</li>
+          <li><b>Offline demo:</b> Decisions are queued and acknowledged by a local mock receiver when online mode is restored.</li>
           <li><b>Sub-2s Latency:</b> Edge inference on local CPU completes in ~360&ndash;420 ms.</li>
         </ul>
       </div>
