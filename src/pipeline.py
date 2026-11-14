@@ -196,6 +196,18 @@ class KioskPipeline:
                 self.offline_mgr.queue_offline_decision(dec["decision"], None, dec["reason_code"], total_lat)
             return dec
 
+        # Do not attempt recognition or offer a PIN while another qualifying
+        # face was visible anywhere in the burst.
+        if max_faces > 1:
+            total_lat = round((time.monotonic() - t_start) * 1000, 1)
+            dec = self.decision_engine.decide({"n_faces": max_faces, "online_mode": online_mode})
+            dec.update({"liveness_score": None, "identity_match": False, "schedule_allowed": False,
+                        "online_mode": online_mode, "latency_ms": total_lat, "timings": timing_breakdown})
+            if not online_mode:
+                self.offline_mgr.queue_offline_decision(dec["decision"], None, dec["reason_code"], total_lat)
+            self.telemetry.record_decision(scenario, dec["decision"], total_lat, dec)
+            return dec
+
         # 3. Burst temporal aggregation
         t0 = time.monotonic()
         pad_agg = self.pad.aggregate_burst(pad_results)
@@ -215,6 +227,12 @@ class KioskPipeline:
                 if not np.isfinite(candidate).all() or float(np.dot(probe, candidate)) < self.recognizer.cosine_threshold_high:
                     consistent = False
                     break
+                # All frames must match; exclude low-quality frames only from
+                # the mean, never from the cross-frame identity check.
+                if (det["laplacian_var"] < self.decision_engine.min_laplacian_var or
+                        not self.decision_engine.min_brightness <= det["brightness"] <= self.decision_engine.max_brightness or
+                        min(det["bbox"][2:4]) < self.decision_engine.min_face_size):
+                    continue
                 features.append(candidate)
         if consistent:
             try:

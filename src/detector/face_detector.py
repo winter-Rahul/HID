@@ -78,12 +78,8 @@ class FaceDetector:
         valid_faces.sort(key=lambda x: x[0], reverse=True)
         primary_area, primary_face = valid_faces[0]
 
-        # Count how many intrusive faces exist in the kiosk zone
-        # A secondary face is a tailgater if its area is >= 40% of the primary face
-        intrusive_faces = 1
-        for area, face in valid_faces[1:]:
-            if area >= primary_area * 0.40:
-                intrusive_faces += 1
+        # Require one qualifying face even if another person is farther away.
+        intrusive_faces = len(valid_faces)
 
         bbox = primary_face[0:4].astype(int)
         landmarks = primary_face[4:14].reshape(5, 2).astype(float)
