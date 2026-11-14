@@ -81,6 +81,11 @@ class ScheduleManager:
         }
         self._save()
 
+    def remove_user_schedule(self, name: str):
+        if name in self.schedules:
+            del self.schedules[name]
+            self._save()
+
     def check_access(self, name: str, simulated_hour: Optional[int] = None, simulated_day: Optional[str] = None) -> Dict[str, Any]:
         """
         Validates if user is authorized to enter campus at the current or simulated time.
@@ -93,6 +98,12 @@ class ScheduleManager:
             return {"allowed": False, "reason": "No authorized schedule", "current_hour": hour}
         else:
             sched = self.schedules[name]
+
+        start, end, days = sched.get("start_hour"), sched.get("end_hour"), sched.get("days")
+        if (not isinstance(start, int) or not isinstance(end, int) or
+                not 0 <= start <= 23 or not 0 <= end <= 24 or start == end or
+                not isinstance(days, list)):
+            return {"allowed": False, "reason": "Invalid schedule", "current_hour": hour}
 
         if sched.get("emergency_override", False):
             return {

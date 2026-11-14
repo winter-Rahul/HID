@@ -14,7 +14,7 @@ detector:
   model_path: "models/face_detection_yunet_2023mar.onnx"
   score_threshold: 0.7
   nms_threshold: 0.3
-  top_k: 1
+  top_k: 10
 
 quality:
   min_face_width: 80         # minimum face box width

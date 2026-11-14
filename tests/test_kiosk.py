@@ -64,10 +64,11 @@ def test_uncertainty_routes_to_step_up():
     assert result["reason_code"] == "UNCERTAIN_LIVENESS"
 
 
-def test_context_schedule_violation():
+def test_context_schedule_violation(tmp_path):
     """Surprise Challenge 01: Verify that a live, recognized person OUTSIDE their schedule is DENIED."""
     engine = DecisionEngine()
-    sched_mgr = ScheduleManager()
+    sched_mgr = ScheduleManager(str(tmp_path / "schedules.json"))
+    sched_mgr.set_user_schedule("Alex Morgan", 8, 18, ["Mon", "Tue", "Wed", "Thu", "Fri"])
     
     # Check access for standard business hours employee at 03:00 AM
     sched_res = sched_mgr.check_access("Alex Morgan", simulated_hour=3)
@@ -120,10 +121,10 @@ def test_multiple_faces_trigger_step_up():
     assert result["reason_code"] == "MULTIPLE_FACES"
 
 
-def test_offline_fail_safe_zero_fail_open():
+def test_offline_fail_safe_zero_fail_open(tmp_path):
     """Surprise Challenge 02: System never fails open when disconnected; requires step-up verification."""
     engine = DecisionEngine()
-    offline_mgr = OfflineFailSafe()
+    offline_mgr = OfflineFailSafe(str(tmp_path / "queue.json"))
     offline_mgr.set_online_status(False) # Disconnect
     
     evidence = {

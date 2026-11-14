@@ -19,12 +19,28 @@ def test_overnight_shift_uses_start_day(tmp_path):
 
 
 def test_offline_events_remain_pending_without_server(tmp_path):
-    manager = OfflineFailSafe(str(tmp_path / "queue.json"))
+    class Unavailable:
+        def accept(self, events):
+            raise OSError("unavailable")
+    manager = OfflineFailSafe(str(tmp_path / "queue.json"), receiver=Unavailable())
     manager.set_online_status(False)
     manager.queue_offline_decision("DENY", None, "NO_FACE", 12)
     manager.set_online_status(True)
     assert manager.get_queue_status()["pending_sync_count"] == 1
     assert OfflineFailSafe(str(tmp_path / "queue.json")).get_queue_status()["pending_sync_count"] == 1
+
+
+def test_mock_sync_acknowledges_persisted_events(tmp_path):
+    import sqlite3
+    from src.offline.mock_central import MockCentral
+    path = tmp_path / "central.sqlite3"
+    manager = OfflineFailSafe(str(tmp_path / "queue.json"), receiver=MockCentral(str(path)))
+    manager.set_online_status(False)
+    entry = manager.queue_offline_decision("DENY", None, "NO_FACE", 12)
+    manager.set_online_status(True)
+    assert manager.get_queue_status()["pending_sync_count"] == 0
+    with sqlite3.connect(path) as db:
+        assert db.execute("SELECT sync_id FROM audit_events").fetchone()[0] == entry["sync_id"]
 
 
 def test_nonfinite_measurements_cannot_grant_access():

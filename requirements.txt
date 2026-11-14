@@ -1,6 +1,6 @@
 numpy
-opencv-python
-onnxruntime
+opencv-python==5.0.0.93
+onnxruntime==1.32.0
 fastapi
 uvicorn
 python-multipart

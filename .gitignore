@@ -31,6 +31,8 @@ Thumbs.db
 # Local data and runtime state
 /data/Data/
 /data/offline_sync_queue.json
+/data/offline_sync_queue.json.state
+/data/.admin_token
 *.sqlite
 *.sqlite3
 *.db

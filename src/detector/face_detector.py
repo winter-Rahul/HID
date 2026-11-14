@@ -90,10 +90,12 @@ class FaceDetector:
         score = float(primary_face[14])
 
         x, y, fw, fh = bbox
+        x2 = min(w, x + fw)
+        y2 = min(h, y + fh)
         x = max(0, x)
         y = max(0, y)
-        fw = min(fw, w - x)
-        fh = min(fh, h - y)
+        fw = x2 - x
+        fh = y2 - y
 
         if fw <= 10 or fh <= 10:
             return None
