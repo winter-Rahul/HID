@@ -66,7 +66,9 @@ def test_normal_scan_needs_no_admin_token(client, monkeypatch):
     api, _ = client
     monkeypatch.delenv("HID_ADMIN_TOKEN", raising=False)
     assert api.post("/api/authenticate", json={"scenario": "genuine_live"}).status_code == 200
-    assert api.post("/api/authenticate", json={"scenario": "printed_photo"}).status_code == 503
+    for scenario in ("printed_photo", "screen_replay", "video_replay", "paper_mask", "unknown_person"):
+        assert api.post("/api/authenticate", json={"scenario": scenario}).status_code == 200
+    assert api.post("/api/authenticate", json={"scenario": "invalid"}).status_code == 400
 
 
 def test_enrollment_schedule_is_selected_by_admin(client, monkeypatch):

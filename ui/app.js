@@ -129,7 +129,9 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scenario: scenario })
       };
-      const resp = scenario === 'genuine_live' ? await fetch('/api/authenticate', request) : await managementFetch('/api/authenticate', request);
+      const resp = scenario === 'schedule_violation' || scenario === 'schedule_denied'
+        ? await managementFetch('/api/authenticate', request)
+        : await fetch('/api/authenticate', request);
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const data = await resp.json();
       displayResult(data);

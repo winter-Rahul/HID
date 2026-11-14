@@ -123,7 +123,9 @@ def authenticate(req: AuthRequest, x_admin_token: Optional[str] = Header(None)):
     Thread-safe and updates persistent tracking state.
     """
     simulated = req.scenario in ("schedule_violation", "schedule_denied")
-    if simulated or req.scenario not in ("genuine_live", None):
+    if req.scenario not in (None, "genuine_live", "printed_photo", "screen_replay", "video_replay", "paper_mask", "unknown_person", "schedule_violation", "schedule_denied"):
+        raise HTTPException(status_code=400, detail="Invalid scenario")
+    if simulated:
         require_admin(x_admin_token)
     if getattr(pipeline, "model_status", "ready") != "ready":
         raise HTTPException(status_code=503, detail="Models are not ready")
