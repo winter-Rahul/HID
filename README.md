@@ -2,7 +2,9 @@
 
 ## Running the prototype
 
-From the project root on Windows, create a virtual environment, install dependencies, and start the kiosk:
+Choose the CPU setup for a broadly compatible install, or the optional NVIDIA setup below for CUDA-backed MiniFASNet inference. Use a separate virtual environment for each because `onnxruntime` and `onnxruntime-gpu` install the same Python module.
+
+### CPU setup (default)
 
 ```powershell
 python -m venv .venv
@@ -23,9 +25,9 @@ The UI displays a liveness score and face-embedding cosine similarity separately
 
 Capture asks the camera to enable automatic white balance when supported and gives positioning, lighting, distance and blur guidance. Framing checks use face-box and landmark heuristics and may need adjustment for the target camera. Spoof and identity inference still use the camera's captured frames; the app cannot add physical lighting or recover detail absent from a distant or blurred image. These adjustments do not guarantee a similarity score above any particular value.
 
-### Optional NVIDIA GPU inference
+### Optional NVIDIA GPU setup (Windows x64)
 
-The default `requirements.txt` uses CPU ONNX Runtime for broad compatibility. On Windows, make a separate environment for NVIDIA CUDA acceleration for the MiniFASNet liveness model (ORT's GPU and CPU wheels install the same Python module and cannot coexist):
+The GPU requirements use ONNX Runtime 1.32.0 with its CUDA 13 and cuDNN 9 runtime packages. A compatible NVIDIA driver and CUDA-capable GPU are required. Create a separate environment and launch the kiosk from that environment:
 
 ```powershell
 python -m venv .venv-gpu
@@ -34,7 +36,18 @@ python -m pip install -r requirements-gpu.txt
 python run_kiosk.py
 ```
 
-The GPU wheel's CUDA/cuDNN extras provide the matching runtime libraries. This configuration targets CUDA 13 and ONNX Runtime 1.32.0. The application requests `CUDAExecutionProvider` when available, logs the active ONNX providers, and falls back to CPU if CUDA cannot initialize. YuNet face detection, SFace recognition, camera capture, and texture analysis still use OpenCV/CPU; this optional setup does not enable CUDA for those stages. Check the startup log for `CUDAExecutionProvider` before assuming GPU inference is active. This may reduce PAD inference latency, but does not guarantee a smoother end-to-end scan; measure on the target camera and machine.
+The GPU wheel's CUDA/cuDNN extras install the matching runtime libraries; a separate CUDA Toolkit install is not needed for this setup. Confirm the driver and ONNX Runtime providers with:
+
+```powershell
+nvidia-smi
+python -c "import onnxruntime as ort; print(ort.get_available_providers())"
+```
+
+The provider list should include `CUDAExecutionProvider`. At startup, the kiosk also logs the active providers for MiniFASNet. The detector tries CUDA first and falls back to CPU if CUDA is unavailable or fails to initialize.
+
+CUDA currently accelerates **MiniFASNet liveness inference only**. YuNet face detection, SFace recognition, texture analysis, camera capture, and the rest of the API still run on CPU; this setup does not enable CUDA for those stages. Because MiniFASNet is a small 80×80 model, GPU transfer and launch overhead may outweigh its compute savings. On one RTX 3050 check, a 100-inference microbenchmark measured 1.89 ms median on CPU and 3.35 ms on CUDA. This is PAD-only timing, not a full kiosk benchmark, and performance varies by machine. Measure end-to-end scan latency before choosing the GPU environment for a demo.
+
+If the log shows CPU only, confirm that `.venv-gpu` is activated, `onnxruntime-gpu` is installed there, and `CUDAExecutionProvider` appears in the provider list. The default CPU setup remains available independently.
 
 The checked-in PAD model has SHA-256 `d7b3cd9ba8a7ceb13baa8c4720902e27ca3112eff52f926c08804af6b6eecc7b`. The [original Silent-Face NumPy conversion](https://github.com/minivision-ai/Silent-Face-Anti-Spoofing/blob/master/src/data_io/functional.py) returns unscaled float pixels, and its [test script](https://github.com/minivision-ai/Silent-Face-Anti-Spoofing/blob/master/test.py) identifies class 1 as real. The [ONNX exporter model card](https://huggingface.co/garciafido/minifasnet-v2-anti-spoofing-onnx) claims normalized pixels and class 0 for the same export. These sources conflict; current behavior follows the original code, but no independent output-equivalence or physical-attack accuracy claim has been established. Invalid model logits cause inference to fail rather than produce an access decision.
 
@@ -288,7 +301,7 @@ HID/
 
 | Layer | Technology |
 |-------|-----------|
-| Inference runtime | ONNX Runtime (warm sessions, works offline) |
+| Inference runtime | ONNX Runtime CPU by default; optional CUDA execution provider for MiniFASNet only |
 | Capture | OpenCV |
 | API | FastAPI (Python) |
 | Frontend | Gradio or HTML/JS |
