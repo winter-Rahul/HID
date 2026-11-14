@@ -1,2 +1,3 @@
 # HID
-HID_Hackethon
+
+A repository for the HID project.
