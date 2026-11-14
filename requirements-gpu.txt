@@ -1,0 +1,11 @@
+# Windows x64 / CUDA 13 dependency set, including the matching CUDA/cuDNN
+# runtime wheels. Keep this separate from requirements.txt: both ORT packages
+# install the same Python module and must not coexist in one environment.
+numpy
+opencv-python==5.0.0.93
+fastapi
+uvicorn
+python-multipart
+scipy
+PyYAML
+onnxruntime-gpu[cuda,cudnn]==1.32.0

@@ -21,6 +21,21 @@ Ordinary scans and the print/screen demo labels do not require the management to
 
 The UI displays a liveness score and face-embedding cosine similarity separately; neither is a calibrated probability. New enrollments and consistent authentication bursts use normalized mean embeddings. This changes similarity scores even though the matching thresholds are unchanged, so validate false matches and non-matches on held-out participants before deployment. The camera requests 640×480 and a face at least 80 pixels across; verify camera support and latency on the target device. Use even frontal lighting and enroll in conditions similar to normal use. Existing single-frame templates must be evaluated or re-enrolled with consent.
 
+Capture asks the camera to enable automatic white balance when supported and gives positioning, lighting, distance and blur guidance. Framing checks use face-box and landmark heuristics and may need adjustment for the target camera. Spoof and identity inference still use the camera's captured frames; the app cannot add physical lighting or recover detail absent from a distant or blurred image. These adjustments do not guarantee a similarity score above any particular value.
+
+### Optional NVIDIA GPU inference
+
+The default `requirements.txt` uses CPU ONNX Runtime for broad compatibility. On Windows, make a separate environment for NVIDIA CUDA acceleration for the MiniFASNet liveness model (ORT's GPU and CPU wheels install the same Python module and cannot coexist):
+
+```powershell
+python -m venv .venv-gpu
+.\.venv-gpu\Scripts\Activate.ps1
+python -m pip install -r requirements-gpu.txt
+python run_kiosk.py
+```
+
+The GPU wheel's CUDA/cuDNN extras provide the matching runtime libraries. This configuration targets CUDA 13 and ONNX Runtime 1.32.0. The application requests `CUDAExecutionProvider` when available, logs the active ONNX providers, and falls back to CPU if CUDA cannot initialize. YuNet face detection, SFace recognition, camera capture, and texture analysis still use OpenCV/CPU; this optional setup does not enable CUDA for those stages. Check the startup log for `CUDAExecutionProvider` before assuming GPU inference is active. This may reduce PAD inference latency, but does not guarantee a smoother end-to-end scan; measure on the target camera and machine.
+
 The checked-in PAD model has SHA-256 `d7b3cd9ba8a7ceb13baa8c4720902e27ca3112eff52f926c08804af6b6eecc7b`. The [original Silent-Face NumPy conversion](https://github.com/minivision-ai/Silent-Face-Anti-Spoofing/blob/master/src/data_io/functional.py) returns unscaled float pixels, and its [test script](https://github.com/minivision-ai/Silent-Face-Anti-Spoofing/blob/master/test.py) identifies class 1 as real. The [ONNX exporter model card](https://huggingface.co/garciafido/minifasnet-v2-anti-spoofing-onnx) claims normalized pixels and class 0 for the same export. These sources conflict; current behavior follows the original code, but no independent output-equivalence or physical-attack accuracy claim has been established. Invalid model logits cause inference to fail rather than produce an access decision.
 
 > **Liveness Detection + Context-Aware Face Authentication Kiosk**

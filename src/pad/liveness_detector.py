@@ -29,22 +29,46 @@ class LivenessDetector:
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"PAD model not found at {model_path}")
 
-        # Auto-detect CUDA for GPU execution if available
-        available_providers = ort.get_available_providers()
-        if "CUDAExecutionProvider" in available_providers:
-            providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
-            self.device_used = "CUDA GPU"
-        else:
-            providers = ["CPUExecutionProvider"]
-            self.device_used = "CPU"
-
         opts = ort.SessionOptions()
         opts.intra_op_num_threads = 2
         opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-        self.session = ort.InferenceSession(model_path, sess_options=opts, providers=providers)
+        available_providers = ort.get_available_providers()
+        self.session = None
+        if "CUDAExecutionProvider" in available_providers:
+            # Newer ORT GPU wheels can load their CUDA/cuDNN DLLs from NVIDIA
+            # Python packages. Older/system installs can omit this API or the
+            # runtime libraries, so retain a clear CPU fallback.
+            preload_dlls = getattr(ort, "preload_dlls", None)
+            if preload_dlls is not None:
+                try:
+                    preload_dlls()
+                except (OSError, RuntimeError) as exc:
+                    print(f"[LivenessDetector] CUDA runtime preload failed: {exc}")
+            try:
+                self.session = ort.InferenceSession(
+                    model_path,
+                    sess_options=opts,
+                    providers=["CUDAExecutionProvider", "CPUExecutionProvider"],
+                )
+            except (OSError, RuntimeError) as exc:
+                print(f"[LivenessDetector] CUDA session failed; falling back to CPU: {exc}")
+
+        if self.session is None:
+            self.session = ort.InferenceSession(
+                model_path, sess_options=opts, providers=["CPUExecutionProvider"]
+            )
+        self.active_providers = self.session.get_providers()
+        self.device_used = (
+            "CUDA GPU (with CPU fallback)"
+            if "CUDAExecutionProvider" in self.active_providers
+            else "CPU"
+        )
         self.input_name = self.session.get_inputs()[0].name
         self.texture_analyzer = TextureAnalyzer()
-        print(f"[LivenessDetector] Loaded MiniFASNet with providers: {providers} (Running on {self.device_used})")
+        print(
+            f"[LivenessDetector] Loaded MiniFASNet with active providers: "
+            f"{self.active_providers} (Running on {self.device_used})"
+        )
 
     def _get_scaled_crop(self, frame: np.ndarray, bbox: List[int], scale: float = 2.7) -> np.ndarray:
         """

@@ -11,6 +11,7 @@ htmlcov/
 
 # Local Python environments and build artifacts
 .venv/
+.venv-*/
 venv/
 env/
 ENV/

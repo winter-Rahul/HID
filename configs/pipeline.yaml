@@ -34,7 +34,7 @@ pad:
 
 identity:
   model_path: "models/face_recognition_sface_2021dec.onnx"
-  cosine_threshold_high: 0.45 # Confident match (SFace cosine typically >= 0.363 is threshold)
+  cosine_threshold_high: 0.60 # Minimum cosine similarity for a confident identity match
   cosine_threshold_low: 0.32  # Below this is non-match -> DENY
   margin_min: 0.08            # Difference between top-1 and top-2
 

@@ -18,7 +18,7 @@ class FaceRecognizer:
         self,
         model_path: str = "models/face_recognition_sface_2021dec.onnx",
         storage_file: str = "data/enrolled_users.json",
-        cosine_threshold_high: float = 0.45,
+        cosine_threshold_high: float = 0.60,
         cosine_threshold_low: float = 0.32,
         margin_min: float = 0.08,
     ):

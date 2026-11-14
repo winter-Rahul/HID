@@ -223,6 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const windowStr = sched ? `${sched.start_hour}:00 - ${sched.end_hour}:00 (${sched.days.join(',')})` : 'No authorized schedule';
         const li = document.createElement('li');
         const info = document.createElement('div');
+        info.className = 'user-info';
         const title = document.createElement('b');
         title.textContent = `👤 ${u}`;
         const schedule = document.createElement('small');
@@ -238,6 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pin.inputMode = 'numeric';
         pin.autocomplete = 'new-password';
         pin.placeholder = 'Set PIN (6–12 digits)';
+        pin.setAttribute('aria-label', `Set PIN for ${u}`);
         const pinButton = document.createElement('button');
         pinButton.className = 'btn btn-secondary btn-sm';
         pinButton.textContent = 'Save PIN';
@@ -250,7 +252,10 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('PIN saved.');
           } catch (err) { alert(err.message); }
         });
-        li.append(info, pin, pinButton, button);
+        const actions = document.createElement('div');
+        actions.className = 'user-actions';
+        actions.append(pin, pinButton, button);
+        li.append(info, actions);
         userList.appendChild(li);
       });
     } catch (e) {
